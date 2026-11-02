@@ -6,7 +6,8 @@ import { RolePill } from '@/components/badges'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { Bar, BlockError } from '@/components/Loading'
+import { BlockError } from '@/components/Loading'
+import { usePlotPhase, useRevealKey } from '@/components/plot-reveal'
 import { notify } from '@/lib/notify'
 import { copyText } from '@/lib/clipboard'
 import { errorMessage } from '@/lib/errors'
@@ -23,19 +24,24 @@ import {
   type MemberRow,
 } from './queries'
 import { SectionHeader } from './SectionHeader'
+import { SKETCH_MEMBERS } from './sketch'
 
 export function MembersSection({ project }: { project: ProjectCard }) {
   const owner = project.my_role === 'owner'
   const members = useMembers(project.id)
   const pending = usePendingInvitations(project.id, owner)
   const [inviting, setInviting] = useState(false)
+  // While the Project page is sketched, draw placeholder Members; ProjectPage holds the reveal until these load.
+  const sketch = usePlotPhase() === 'sketch'
+  const revealKey = useRevealKey()
+  const rows = sketch ? SKETCH_MEMBERS : members.data
 
   return (
     <section aria-labelledby="members-heading" className="flex flex-col gap-3">
       <SectionHeader
         id="members-heading"
         title="Members"
-        count={members.data?.length}
+        count={rows?.length}
         action={
           owner && (
             <Button size="sm" variant="ghost" onClick={() => setInviting(true)}>
@@ -45,19 +51,16 @@ export function MembersSection({ project }: { project: ProjectCard }) {
         }
       />
 
-      {members.error ? (
+      {members.error && !sketch ? (
         <BlockError message={`Couldn't load Members. ${errorMessage(members.error)}`} onRetry={() => members.refetch()} />
-      ) : members.isPending ? (
-        <div className="flex flex-col gap-2" aria-hidden>
-          <Bar className="h-8 w-full" />
-          <Bar className="h-8 w-full" />
-        </div>
       ) : (
-        <ul className="flex flex-col rounded-md border bg-card">
-          {members.data.map((m, i) => (
-            <MemberItem key={m.user_id} member={m} project={project} first={i === 0} />
-          ))}
-        </ul>
+        rows && (
+          <ul className="flex flex-col rounded-md border bg-card">
+            {rows.map((m, i) => (
+              <MemberItem key={revealKey(m.user_id, i)} member={m} project={project} first={i === 0} />
+            ))}
+          </ul>
+        )
       )}
 
       {owner && pending.data && pending.data.length > 0 && (

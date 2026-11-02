@@ -3,12 +3,15 @@ import { useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { RolePill } from '@/components/badges'
 import { Bar } from '@/components/Loading'
+import { useRevealKey } from '@/components/plot-reveal'
 import { StatusGlyph } from '@/components/StatusGlyph'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { useBoard } from '@/features/board/queries'
+import { sketchBoard } from '@/features/board/sketch'
 import { useRepositories } from '@/features/project/queries'
+import { sketchRepository } from '@/features/project/sketch'
 import { formatDueDate, isoDate, pluralize, relativeTime, todayISODate } from '@/lib/format'
 import type { ProjectCard } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -39,17 +42,13 @@ export interface Stat {
 }
 
 /** Hairline-divided strip of figures: micro label over a mono value. */
-export function StatStrip({ stats, loading }: { stats: Stat[]; loading?: boolean }) {
+export function StatStrip({ stats }: { stats: Stat[] }) {
   return (
     <Card className="grid grid-cols-2 gap-px overflow-hidden bg-border py-0 sm:grid-cols-4">
       {stats.map((s) => (
         <div key={s.label} className="flex flex-col gap-1 bg-card px-4 py-3.5">
           <Micro>{s.label}</Micro>
-          {loading ? (
-            <Bar className="my-1 h-6 w-12" />
-          ) : (
-            <span className={cn('data text-2xl leading-8 font-medium', s.failed && 'text-destructive')}>{s.value}</span>
-          )}
+          <span className={cn('data text-2xl leading-8 font-medium', s.failed && 'text-destructive')}>{s.value}</span>
           {s.note && <span className={cn('data text-[11px] text-faint', s.failed && 'text-destructive')}>{s.note}</span>}
         </div>
       ))}
@@ -64,12 +63,23 @@ export function StatStrip({ stats, loading }: { stats: Stat[]; loading?: boolean
  * meta line on the left; its Board as a "pipeline" of Columns on the right, whose Task counts sum
  * exactly to the total in the caption.
  */
-export function HeroProject({ card, progress }: { card: ProjectCard; progress?: { done: number; total: number } }) {
-  const repos = useRepositories(card.id)
-  const board = useBoard(card.id)
-  const repo = repos.data?.[0]
-  const columns = board.data?.columns ?? []
-  const counts = columns.map((c) => (board.data?.tasks ?? []).filter((t) => t.column_id === c.id).length)
+export function HeroProject({
+  card,
+  progress,
+  sketch = false,
+}: {
+  card: ProjectCard
+  progress?: { done: number; total: number }
+  /** A placeholder card while the dashboard is sketched: draw a placeholder Repository and Board, fetch nothing. */
+  sketch?: boolean
+}) {
+  const repos = useRepositories(card.id, !sketch)
+  const board = useBoard(card.id, !sketch)
+  const revealKey = useRevealKey()
+  const repo = sketch ? sketchRepository(card.id) : repos.data?.[0]
+  const boardData = sketch ? sketchBoard(card.id) : board.data
+  const columns = boardData?.columns ?? []
+  const counts = columns.map((c) => (boardData?.tasks ?? []).filter((t) => t.column_id === c.id).length)
   const total = counts.reduce((a, b) => a + b, 0)
   const open = card.open_task_count ?? 0
 
@@ -103,8 +113,8 @@ export function HeroProject({ card, progress }: { card: ProjectCard; progress?: 
           )}
           {card.tech_tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {card.tech_tags.slice(0, 5).map((t) => (
-                <Badge key={t} variant="outline" className="data bg-card font-normal">
+              {card.tech_tags.slice(0, 5).map((t, i) => (
+                <Badge key={revealKey(t, i)} variant="outline" className="data bg-card font-normal">
                   {t}
                 </Badge>
               ))}
@@ -117,7 +127,7 @@ export function HeroProject({ card, progress }: { card: ProjectCard; progress?: 
 
         <div className="flex min-w-0 flex-col justify-center gap-3">
           <Micro>Board</Micro>
-          {board.isPending ? (
+          {!boardData ? (
             <Bar className="h-14 w-full" />
           ) : columns.length === 0 ? (
             <p className="data text-xs text-faint">no columns</p>
@@ -128,7 +138,7 @@ export function HeroProject({ card, progress }: { card: ProjectCard; progress?: 
                   {/* The rail runs through the dot centreline (dot 12px → 6px) and passes behind the dots. */}
                   <span aria-hidden className="absolute inset-x-[6px] top-[6px] h-px bg-border" />
                   {columns.map((c, i) => (
-                    <li key={c.id} className="relative flex min-w-16 flex-col items-center gap-2 first:items-start last:items-end">
+                    <li key={revealKey(c.id, i)} className="relative flex min-w-16 flex-col items-center gap-2 first:items-start last:items-end">
                       <span className="flex rounded-full bg-card outline-4 outline-card">
                         <StatusGlyph kind={counts[i] ? 'filled' : 'empty'} />
                       </span>
@@ -161,6 +171,7 @@ export function ProjectsTable({
   progress: Map<string, { done: number; total: number }>
   overdueByProject: Map<string, number>
 }) {
+  const revealKey = useRevealKey()
   return (
     <Card className="gap-0 overflow-hidden py-0">
       <div className="overflow-x-auto">
@@ -175,11 +186,11 @@ export function ProjectsTable({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {cards.map((c) => {
+            {cards.map((c, i) => {
               const overdue = overdueByProject.get(c.id) ?? 0
               const p = progress.get(c.id)
               return (
-                <tr key={c.id} className="h-11 transition-colors hover:bg-accent">
+                <tr key={revealKey(c.id, i)} className="h-11 transition-colors hover:bg-accent">
                   <td className="w-28 px-4">
                     <span className={cn('inline-flex items-center gap-2 text-xs font-medium', overdue > 0 && 'text-destructive')}>
                       <StatusGlyph kind={overdue ? 'failed' : 'filled'} />
@@ -226,7 +237,8 @@ export function ProjectsTable({
 /* ------------------------------------------------------------------ due log */
 
 /** Upcoming due dates as a mono log excerpt; overdue Tasks form the red tail, the only chroma here. */
-export function DueLog({ tasks, cardById, loading }: { tasks: DashboardTask[]; cardById: Map<string, ProjectCard>; loading: boolean }) {
+export function DueLog({ tasks, cardById }: { tasks: DashboardTask[]; cardById: Map<string, ProjectCard> }) {
+  const revealKey = useRevealKey()
   const today = todayISODate()
   const weekAhead = isoDate(new Date(Date.now() + 7 * 864e5))
   const open = tasks.filter((t) => !t.is_done && t.due_date)
@@ -237,9 +249,9 @@ export function DueLog({ tasks, cardById, loading }: { tasks: DashboardTask[]; c
   const tail = overdue.slice(0, 4)
   const head = upcoming.slice(0, Math.max(0, 9 - tail.length))
 
-  const line = (t: DashboardTask, failed: boolean) => (
+  const line = (t: DashboardTask, failed: boolean, i: number) => (
     <Link
-      key={t.id}
+      key={revealKey(t.id, i)}
       to={`/projects/${t.project_id}`}
       className={cn('flex gap-3 whitespace-pre hover:underline', failed ? 'text-destructive' : 'text-muted-foreground')}
     >
@@ -261,14 +273,12 @@ export function DueLog({ tasks, cardById, loading }: { tasks: DashboardTask[]; c
         </span>
       </div>
       <div className="data overflow-x-auto rounded-md border bg-background p-4 text-xs leading-[1.6]">
-        {loading ? (
-          <span className="text-faint">loading…</span>
-        ) : head.length + tail.length === 0 ? (
+        {head.length + tail.length === 0 ? (
           <span className="text-faint">[{formatDueDate(today)}] nothing due in the next 7 days</span>
         ) : (
           <div className="flex min-w-max flex-col">
-            {head.map((t) => line(t, false))}
-            {tail.map((t) => line(t, true))}
+            {head.map((t, i) => line(t, false, i))}
+            {tail.map((t, i) => line(t, true, head.length + i))}
             {overdue.length > tail.length && <span className="text-destructive">… {overdue.length - tail.length} more overdue</span>}
           </div>
         )}
@@ -282,7 +292,7 @@ export function DueLog({ tasks, cardById, loading }: { tasks: DashboardTask[]; c
 const dayFmt = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
 
 /** Tasks created per day over 14 days: thin solid-ink bars on a hairline baseline, no gridlines. */
-export function CreatedChart({ tasks, loading }: { tasks: DashboardTask[]; loading: boolean }) {
+export function CreatedChart({ tasks, sketch = false }: { tasks: DashboardTask[]; sketch?: boolean }) {
   const days = useMemo(() => {
     const now = new Date()
     const buckets = Array.from({ length: 14 }, (_, i) => {
@@ -300,7 +310,8 @@ export function CreatedChart({ tasks, loading }: { tasks: DashboardTask[]; loadi
   }, [tasks])
   const created = days.reduce((s, d) => s + d.created, 0)
   const done = days.reduce((s, d) => s + d.done, 0)
-  const max = Math.max(1, ...days.map((d) => d.created))
+  // The sketch's even bars stand at half height, so the pencil visibly adjusts to the real counts.
+  const max = sketch ? 2 : Math.max(1, ...days.map((d) => d.created))
 
   return (
     <Card className="min-w-0 gap-3 p-5">
@@ -329,14 +340,8 @@ export function CreatedChart({ tasks, loading }: { tasks: DashboardTask[]; loadi
         <span>Today</span>
       </div>
       <p className="data text-xs">
-        {loading ? (
-          <span className="text-faint">loading…</span>
-        ) : (
-          <>
-            {created} created <span className="text-faint">·</span> {done} done <span className="text-faint">·</span>{' '}
-            {created ? Math.round((done / created) * 100) : 0}% done
-          </>
-        )}
+        {sketch ? 0 : created} created <span className="text-faint">·</span> {done} done <span className="text-faint">·</span>{' '}
+        {created ? Math.round((done / created) * 100) : 0}% done
       </p>
     </Card>
   )

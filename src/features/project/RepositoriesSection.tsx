@@ -4,7 +4,8 @@ import { KindPill } from '@/components/badges'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { Bar, BlockError } from '@/components/Loading'
+import { BlockError } from '@/components/Loading'
+import { usePlotPhase, useRevealKey } from '@/components/plot-reveal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,13 +29,17 @@ import {
 } from './queries'
 import { ReleaseDialog, ReleaseHistory } from './releases'
 import { SectionHeader } from './SectionHeader'
+import { sketchRepository, sketchVersions } from './sketch'
 
 /** A Project has at most one Repository (see migration 20261102010000_single_repository). */
 export function RepositoriesSection({ projectId, editable }: { projectId: string; editable: boolean }) {
   const repos = useRepositories(projectId)
   const versions = useEnvironmentVersions(projectId)
   const [adding, setAdding] = useState(false)
-  const repo = repos.data?.[0]
+  // While the Project page is sketched, draw a placeholder Repository; ProjectPage holds the reveal until this loads.
+  const sketch = usePlotPhase() === 'sketch'
+  const repo = sketch ? sketchRepository(projectId) : repos.data?.[0]
+  const versionMap = sketch && repo ? sketchVersions(repo) : versions.data
 
   return (
     <section aria-labelledby="repos-heading" className="flex flex-col gap-4">
@@ -52,14 +57,8 @@ export function RepositoriesSection({ projectId, editable }: { projectId: string
         }
       />
 
-      {repos.error ? (
+      {repos.error && !sketch ? (
         <BlockError message={`Couldn't load the Repository. ${errorMessage(repos.error)}`} onRetry={() => repos.refetch()} />
-      ) : repos.isPending ? (
-        <div className="flex flex-col gap-3 rounded-md border bg-card p-5" aria-hidden>
-          <Bar className="h-5 w-1/3" />
-          <Bar className="h-4 w-2/3" />
-          <Bar className="h-4 w-1/2" />
-        </div>
       ) : !repo ? (
         <p className="rounded-md border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
           No Repository yet.{' '}
@@ -68,7 +67,7 @@ export function RepositoriesSection({ projectId, editable }: { projectId: string
             : 'An Editor can add one.'}
         </p>
       ) : (
-        <RepositoryBlock repo={repo} projectId={projectId} editable={editable} versions={versions.data} />
+        <RepositoryBlock repo={repo} projectId={projectId} editable={editable} versions={versionMap} />
       )}
 
       {adding && <RepositoryDialog projectId={projectId} onClose={() => setAdding(false)} />}
@@ -88,6 +87,7 @@ function RepositoryBlock({ repo, projectId, editable, versions }: RepositoryBloc
   const [deleting, setDeleting] = useState(false)
   const [addingEnv, setAddingEnv] = useState(false)
   const del = useDeleteRepository(projectId)
+  const revealKey = useRevealKey()
 
   return (
     <article className="rounded-md border bg-card" aria-label={`Repository ${repo.name}`}>
@@ -144,9 +144,9 @@ function RepositoryBlock({ repo, projectId, editable, versions }: RepositoryBloc
         </p>
       ) : (
         <ul className="flex flex-col">
-          {repo.environments.map((env) => (
+          {repo.environments.map((env, i) => (
             <EnvironmentRow
-              key={env.id}
+              key={revealKey(env.id, i)}
               env={env}
               projectId={projectId}
               editable={editable}

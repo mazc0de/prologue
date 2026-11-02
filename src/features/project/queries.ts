@@ -69,9 +69,10 @@ export function useDeleteProject() {
 export type EnvironmentWithUrls = Environment & { environment_urls: EnvironmentUrl[] }
 export type RepositoryTree = Repository & { environments: EnvironmentWithUrls[] }
 
-export function useRepositories(projectId: string) {
+export function useRepositories(projectId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.repositories(projectId),
+    enabled,
     queryFn: async () => {
       const rows = unwrap(
         await supabase

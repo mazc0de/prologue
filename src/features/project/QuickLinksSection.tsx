@@ -3,16 +3,22 @@ import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormDialog } from '@/components/FormDialog'
 import { FormError, TextField } from '@/components/Field'
-import { Bar, BlockError } from '@/components/Loading'
+import { BlockError } from '@/components/Loading'
+import { usePlotPhase, useRevealKey } from '@/components/plot-reveal'
 import { notify } from '@/lib/notify'
 import { errorMessage } from '@/lib/errors'
 import { hostOf, isHttpUrl } from '@/lib/format'
 import type { QuickLink } from '@/lib/types'
 import { useDeleteQuickLink, useQuickLinks, useSaveQuickLink } from './queries'
 import { SectionHeader } from './SectionHeader'
+import { sketchQuickLinks } from './sketch'
 
 export function QuickLinksSection({ projectId, editable }: { projectId: string; editable: boolean }) {
-  const { data, isPending, error, refetch } = useQuickLinks(projectId)
+  const query = useQuickLinks(projectId)
+  // While the Project page is sketched, draw placeholder links; ProjectPage holds the reveal until these load.
+  const sketch = usePlotPhase() === 'sketch'
+  const revealKey = useRevealKey()
+  const data = sketch ? sketchQuickLinks(projectId) : query.data
   const [editing, setEditing] = useState<QuickLink | 'new' | null>(null)
   const del = useDeleteQuickLink(projectId)
 
@@ -30,18 +36,16 @@ export function QuickLinksSection({ projectId, editable }: { projectId: string; 
           )
         }
       />
-      {error ? (
-        <BlockError message={`Couldn't load Quick Links. ${errorMessage(error)}`} onRetry={() => refetch()} />
-      ) : isPending ? (
-        <Bar className="h-5 w-2/3" />
-      ) : data.length === 0 ? (
+      {query.error && !sketch ? (
+        <BlockError message={`Couldn't load Quick Links. ${errorMessage(query.error)}`} onRetry={() => query.refetch()} />
+      ) : !data ? null : data.length === 0 ? (
         <p className="rounded-md border border-dashed bg-card px-4 py-2.5 text-sm text-muted-foreground">
           Design files, API docs, dashboards: anything that isn't a Repository or Environment.
         </p>
       ) : (
         <ul className="flex flex-col rounded-md border bg-card">
           {data.map((link, i) => (
-            <li key={link.id} className={i ? 'border-t border-border/60' : undefined}>
+            <li key={revealKey(link.id, i)} className={i ? 'border-t border-border/60' : undefined}>
               <div className="group flex items-center gap-2 py-1 pr-1.5 pl-4">
                 <a
                   href={link.url}

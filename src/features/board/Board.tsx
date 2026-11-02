@@ -16,9 +16,10 @@ import { Plus, Tag } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Bar, BlockError } from '@/components/Loading'
+import { BlockError, LoadingReveal } from '@/components/Loading'
+import { useRevealKey } from '@/components/plot-reveal'
 import { notify } from '@/lib/notify'
-import { useMembers } from '@/features/project/queries'
+import { useMembers, type MemberRow } from '@/features/project/queries'
 import { errorMessage } from '@/lib/errors'
 import { pluralize } from '@/lib/format'
 import { needsRebalance, positionBetween } from '@/lib/position'
@@ -35,6 +36,7 @@ import {
   type BoardData,
   type BoardTask,
 } from './queries'
+import { sketchBoard } from './sketch'
 import { TaskDialog } from './TaskDialog'
 import { TaskTile } from './TaskItem'
 
@@ -47,14 +49,54 @@ function itemsFrom(data: BoardData): ColumnItems {
   return items
 }
 
-export function Board({ project }: { project: ProjectCard }) {
+/**
+ * The Project's Board. Its first load is sketched in pencil (LoadingReveal) from a placeholder Board,
+ * held until the Project (`projectPending`), the Board, its Labels and the Members are all in.
+ */
+export function Board({ project, projectPending = false }: { project: ProjectCard; projectPending?: boolean }) {
   const projectId = project.id
-  const editable = canEdit(project.my_role)
   const board = useBoard(projectId)
   const labels = useLabels(projectId)
   const members = useMembers(projectId)
   useBoardRealtime(projectId)
 
+  // The reveal sits inside the page gutter, so the pencil frame is the Board card, not the full viewport.
+  return (
+    <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6">
+      {board.error ? (
+        <BoardFrame>
+          <BlockError message={`Couldn't load the Board. ${errorMessage(board.error)}`} onRetry={() => board.refetch()} />
+        </BoardFrame>
+      ) : (
+        <LoadingReveal pending={projectPending || board.isPending || labels.isPending || members.isPending}>
+          {(sketch) => (
+            <BoardView
+              project={project}
+              data={sketch || !board.data ? sketchBoard(projectId) : board.data}
+              labels={sketch ? [] : (labels.data ?? [])}
+              members={sketch ? [] : (members.data ?? [])}
+            />
+          )}
+        </LoadingReveal>
+      )}
+    </div>
+  )
+}
+
+function BoardView({
+  project,
+  data,
+  labels,
+  members,
+}: {
+  project: ProjectCard
+  data: BoardData
+  labels: Label[]
+  members: MemberRow[]
+}) {
+  const projectId = project.id
+  const editable = canEdit(project.my_role)
+  const revealKey = useRevealKey()
   const move = useMoveTask(projectId)
   const rebalance = useRebalanceColumn(projectId)
 
@@ -72,14 +114,13 @@ export function Board({ project }: { project: ProjectCard }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const data = board.data
-  const baseItems = useMemo(() => (data ? itemsFrom(data) : {}), [data])
+  const baseItems = useMemo(() => itemsFrom(data), [data])
   const items = dragItems ?? baseItems
-  const taskById = useMemo(() => new Map(data?.tasks.map((t) => [t.id, t]) ?? []), [data])
-  const labelById = useMemo(() => new Map<string, Label>(labels.data?.map((l) => [l.id, l]) ?? []), [labels.data])
+  const taskById = useMemo(() => new Map(data.tasks.map((t) => [t.id, t])), [data])
+  const labelById = useMemo(() => new Map<string, Label>(labels.map((l) => [l.id, l])), [labels])
   const memberById = useMemo(
-    () => new Map(members.data?.map((m) => [m.user_id, m.profile?.display_name ?? 'Unknown']) ?? []),
-    [members.data],
+    () => new Map(members.map((m) => [m.user_id, m.profile?.display_name ?? 'Unknown'])),
+    [members],
   )
 
   const findContainer = (id: string, source: ColumnItems): string | undefined => {
@@ -122,7 +163,7 @@ export function Board({ project }: { project: ProjectCard }) {
     const current = dragItems
     setActiveId(null)
     setDragItems(null)
-    if (!over || !current || !data) return
+    if (!over || !current) return
 
     const to = findContainer(String(over.id), current)
     if (!to) return
@@ -158,30 +199,6 @@ export function Board({ project }: { project: ProjectCard }) {
           if (needsRebalance(before, position, after)) rebalance.mutate(ordered)
         },
       },
-    )
-  }
-
-  if (board.error) {
-    return (
-      <BoardFrame>
-        <BlockError message={`Couldn't load the Board. ${errorMessage(board.error)}`} onRetry={() => board.refetch()} />
-      </BoardFrame>
-    )
-  }
-
-  if (!data) {
-    return (
-      <BoardFrame>
-        <div className="flex gap-4 overflow-hidden" aria-busy="true">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="flex w-[288px] flex-none flex-col gap-2 rounded-md border bg-background p-3">
-              <Bar className="h-5 w-24" />
-              <Bar className="h-16 w-full bg-card" />
-              <Bar className="h-16 w-full bg-card" />
-            </div>
-          ))}
-        </div>
-      </BoardFrame>
     )
   }
 
@@ -221,7 +238,7 @@ export function Board({ project }: { project: ProjectCard }) {
           <ol className="flex w-max items-start gap-4" aria-label="Columns">
             {data.columns.map((column, index) => (
               <BoardColumnView
-                key={column.id}
+                key={revealKey(column.id, index)}
                 projectId={projectId}
                 column={column}
                 prevColumn={data.columns[index - 1]}
@@ -256,8 +273,8 @@ export function Board({ project }: { project: ProjectCard }) {
           projectId={projectId}
           task={openTask}
           columns={data.columns}
-          labels={labels.data ?? []}
-          members={members.data ?? []}
+          labels={labels}
+          members={members}
           editable={editable}
           onClose={() => setOpenTaskId(null)}
         />
@@ -278,7 +295,7 @@ function BoardFrame({
   children: React.ReactNode
 }) {
   return (
-    <section aria-labelledby="board-heading" className="mx-auto w-full max-w-[1280px] px-4 sm:px-6">
+    <section aria-labelledby="board-heading">
       <Card className="gap-4 p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-baseline gap-3">

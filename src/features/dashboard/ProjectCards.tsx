@@ -1,7 +1,7 @@
 import { Pin } from 'lucide-react'
 import { Link } from 'react-router'
 import { ProjectStatusPill, RolePill } from '@/components/badges'
-import { Bar } from '@/components/Loading'
+import { useRevealKey } from '@/components/plot-reveal'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -41,6 +41,7 @@ function plainText(markdown: string): string {
 
 export function ProjectCardView({ card, progress }: { card: ProjectCard; progress?: { done: number; total: number } }) {
   const togglePin = useTogglePin()
+  const revealKey = useRevealKey()
   const pinned = Boolean(card.pinned_at)
   const description = plainText(card.description)
   const tags = card.tech_tags.slice(0, 4)
@@ -84,8 +85,8 @@ export function ProjectCardView({ card, progress }: { card: ProjectCard; progres
 
       {tags.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tech Tags">
-          {tags.map((t) => (
-            <li key={t}>
+          {tags.map((t, i) => (
+            <li key={revealKey(t, i)}>
               <Badge variant="outline" className="data bg-card font-normal">
                 {t}
               </Badge>
@@ -117,20 +118,6 @@ export function ProjectCardView({ card, progress }: { card: ProjectCard; progres
           {relativeTime(card.last_activity_at)}
         </span>
       </div>
-    </Card>
-  )
-}
-
-export function CardSkeleton() {
-  return (
-    <Card className="min-h-[224px] gap-3 p-5" aria-hidden>
-      <div className="flex items-center gap-3">
-        <Bar className="size-9" />
-        <Bar className="h-5 w-1/2" />
-      </div>
-      <Bar className="h-4 w-5/6" />
-      <Bar className="h-4 w-2/3" />
-      <Bar className="mt-auto h-1.5 w-full" />
     </Card>
   )
 }

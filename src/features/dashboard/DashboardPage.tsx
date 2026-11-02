@@ -2,21 +2,35 @@ import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '@/auth/AuthProvider'
-import { Bar, BlockError } from '@/components/Loading'
+import { BlockError, LoadingReveal } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useBoard } from '@/features/board/queries'
+import { useRepositories } from '@/features/project/queries'
 import { PageHeader } from '@/layout/PageHeader'
 import { errorMessage } from '@/lib/errors'
 import { todayISODate } from '@/lib/format'
+import type { ProjectCard } from '@/lib/types'
 import { NewProjectDialog } from './NewProjectDialog'
-import { sortCards, useDashboardTasks, useProjectCards } from './queries'
+import { sortCards, useDashboardTasks, useProjectCards, type DashboardTask } from './queries'
+import { SKETCH_CARDS, SKETCH_TASKS } from './sketch'
 import { progressByProject } from './stats'
 import { CreatedChart, DueLog, HeroProject, ProjectsTable, SectionLabel, StatStrip } from './widgets'
+
+/** Active Projects, pinned first then most recent activity. Only these feed the overview. */
+const activeCards = (cards: ProjectCard[]) => sortCards(cards.filter((c) => c.status === 'active'))
+
+/** The hero card's Project: the most recently active one. */
+const latestCard = (active: ProjectCard[]) =>
+  [...active].sort((a, b) => b.last_activity_at.localeCompare(a.last_activity_at))[0] as ProjectCard | undefined
 
 /*
  * Dashboard in the e-ink layout of DESIGN.md: header bar, a dot-grain hero card for the most recently
  * active Project (its Board drawn as a pipeline strip), a stat strip, a dense Projects table, then a
  * split row of the due-date log and the 14-day ink bar chart. Only Active Projects count here.
+ *
+ * The first load is sketched in pencil (LoadingReveal) and waits for everything the overview shows,
+ * including the hero Project's Repository and Board.
  */
 export function DashboardPage() {
   const { profile } = useAuth()
@@ -24,25 +38,10 @@ export function DashboardPage() {
   const tasksQuery = useDashboardTasks()
   const [creating, setCreating] = useState(false)
 
-  const active = useMemo(() => sortCards((cards ?? []).filter((c) => c.status === 'active')), [cards])
-  const activeIds = useMemo(() => new Set(active.map((c) => c.id)), [active])
-  const tasks = useMemo(() => (tasksQuery.data ?? []).filter((t) => activeIds.has(t.project_id)), [tasksQuery.data, activeIds])
-  const progress = useMemo(() => progressByProject(tasksQuery.data ?? []), [tasksQuery.data])
-  const cardById = useMemo(() => new Map((cards ?? []).map((c) => [c.id, c])), [cards])
-  const latest = useMemo(() => [...active].sort((a, b) => b.last_activity_at.localeCompare(a.last_activity_at))[0], [active])
-
-  const today = todayISODate()
-  const overdueByProject = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const t of tasks) {
-      if (!t.is_done && t.due_date && t.due_date < today) map.set(t.project_id, (map.get(t.project_id) ?? 0) + 1)
-    }
-    return map
-  }, [tasks, today])
-  const overdue = [...overdueByProject.values()].reduce((a, b) => a + b, 0)
-  const openTasks = active.reduce((sum, c) => sum + (c.open_task_count ?? 0), 0)
-  const inactive = (cards ?? []).length - active.length
-  const released = active.filter((c) => c.production_version).length
+  const latest = useMemo(() => latestCard(activeCards(cards ?? [])), [cards])
+  const heroRepos = useRepositories(latest?.id ?? '', Boolean(latest))
+  const heroBoard = useBoard(latest?.id ?? '', Boolean(latest))
+  const pending = isPending || tasksQuery.isPending || (latest ? heroRepos.isPending || heroBoard.isPending : false)
   const who = profile?.display_name.trim().split(/\s+/)[0]?.toLowerCase() || 'prologue'
 
   return (
@@ -55,54 +54,97 @@ export function DashboardPage() {
           </Button>
         }
       />
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">
         {error ? (
           <BlockError message={`Couldn't load your Projects. ${errorMessage(error)}`} onRetry={() => refetch()} />
-        ) : isPending ? (
-          <Bar className="h-48 w-full rounded-lg" />
-        ) : active.length === 0 ? (
-          <FirstRun hasInactive={inactive > 0} onCreate={() => setCreating(true)} />
         ) : (
-          <>
-            {latest && <HeroProject card={latest} progress={progress.get(latest.id)} />}
-
-            <StatStrip
-              loading={tasksQuery.isPending}
-              stats={[
-                { label: 'Active Projects', value: active.length, note: `${inactive} inactive` },
-                { label: 'Open Tasks', value: openTasks, note: `${tasks.length} total` },
-                { label: 'Overdue', value: overdue, note: overdue ? 'past due date' : 'none', failed: overdue > 0 },
-                { label: 'In Production', value: released, note: `of ${active.length} released` },
-              ]}
-            />
-
-            {tasksQuery.error && (
-              <BlockError message={`Couldn't load Tasks. ${errorMessage(tasksQuery.error)}`} onRetry={() => tasksQuery.refetch()} />
-            )}
-
-            <section aria-label="Active Projects" className="flex flex-col gap-2.5">
-              <SectionLabel
-                label="Active Projects"
-                action={
-                  <Link
-                    to="/projects"
-                    className="data text-xs text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
-                  >
-                    all {cards?.length ?? 0} →
-                  </Link>
-                }
+          <LoadingReveal pending={pending} className="flex flex-col gap-6">
+            {(sketch) => (
+              <Overview
+                sketch={sketch}
+                cards={sketch ? SKETCH_CARDS : (cards ?? [])}
+                allTasks={sketch ? SKETCH_TASKS : (tasksQuery.data ?? [])}
+                tasksError={sketch ? null : tasksQuery.error}
+                onRetryTasks={() => tasksQuery.refetch()}
+                onCreate={() => setCreating(true)}
               />
-              <ProjectsTable cards={active.slice(0, 10)} progress={progress} overdueByProject={overdueByProject} />
-            </section>
-
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-              <DueLog tasks={tasks} cardById={cardById} loading={tasksQuery.isPending} />
-              <CreatedChart tasks={tasks} loading={tasksQuery.isPending} />
-            </div>
-          </>
+            )}
+          </LoadingReveal>
         )}
       </div>
       {creating && <NewProjectDialog open onClose={() => setCreating(false)} />}
+    </>
+  )
+}
+
+interface OverviewProps {
+  /** Drawn from placeholder data while the first load is sketched: every figure reads 0 so it counts up. */
+  sketch: boolean
+  cards: ProjectCard[]
+  allTasks: DashboardTask[]
+  tasksError: Error | null
+  onRetryTasks: () => void
+  onCreate: () => void
+}
+
+function Overview({ sketch, cards, allTasks, tasksError, onRetryTasks, onCreate }: OverviewProps) {
+  const active = useMemo(() => activeCards(cards), [cards])
+  const activeIds = useMemo(() => new Set(active.map((c) => c.id)), [active])
+  const tasks = useMemo(() => allTasks.filter((t) => activeIds.has(t.project_id)), [allTasks, activeIds])
+  const progress = useMemo(() => progressByProject(allTasks), [allTasks])
+  const cardById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards])
+  const latest = useMemo(() => latestCard(active), [active])
+
+  const today = todayISODate()
+  const overdueByProject = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const t of tasks) {
+      if (!t.is_done && t.due_date && t.due_date < today) map.set(t.project_id, (map.get(t.project_id) ?? 0) + 1)
+    }
+    return map
+  }, [tasks, today])
+  const figure = (n: number) => (sketch ? 0 : n)
+  const overdue = [...overdueByProject.values()].reduce((a, b) => a + b, 0)
+  const openTasks = active.reduce((sum, c) => sum + (c.open_task_count ?? 0), 0)
+  const inactive = cards.length - active.length
+  const released = active.filter((c) => c.production_version).length
+
+  if (active.length === 0) return <FirstRun hasInactive={inactive > 0} onCreate={onCreate} />
+
+  return (
+    <>
+      {latest && <HeroProject card={latest} progress={progress.get(latest.id)} sketch={sketch} />}
+
+      <StatStrip
+        stats={[
+          { label: 'Active Projects', value: figure(active.length), note: `${figure(inactive)} inactive` },
+          { label: 'Open Tasks', value: figure(openTasks), note: `${figure(tasks.length)} total` },
+          { label: 'Overdue', value: overdue, note: overdue ? 'past due date' : 'none', failed: overdue > 0 },
+          { label: 'In Production', value: figure(released), note: `of ${figure(active.length)} released` },
+        ]}
+      />
+
+      {tasksError && <BlockError message={`Couldn't load Tasks. ${errorMessage(tasksError)}`} onRetry={onRetryTasks} />}
+
+      <section aria-label="Active Projects" className="flex flex-col gap-2.5">
+        <SectionLabel
+          label="Active Projects"
+          action={
+            <Link
+              to="/projects"
+              className="data text-xs text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
+            >
+              all {figure(cards.length)} →
+            </Link>
+          }
+        />
+        <ProjectsTable cards={active.slice(0, 10)} progress={progress} overdueByProject={overdueByProject} />
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <DueLog tasks={tasks} cardById={cardById} />
+        <CreatedChart tasks={tasks} sketch={sketch} />
+      </div>
     </>
   )
 }

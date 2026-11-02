@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FormDialog } from '@/components/FormDialog'
 import { FormError, TextField } from '@/components/Field'
-import { Bar, BlockError } from '@/components/Loading'
+import { BlockError, LoadingReveal } from '@/components/Loading'
+import { useRevealKey } from '@/components/plot-reveal'
 import { Markdown, MarkdownField } from '@/components/Markdown'
 import { errorMessage } from '@/lib/errors'
 import { formatDate, formatDateTime, isoToLocalInput, localInputToISO } from '@/lib/format'
 import type { Environment, Release } from '@/lib/types'
 import { useDeleteRelease, useReleases, useSaveRelease } from './queries'
+import { sketchReleases } from './sketch'
 
 /** "Bump version" = record a Release (ADR 0002). Also used to edit one. */
 export function ReleaseDialog({
@@ -114,51 +116,20 @@ export function ReleaseHistory({
   const del = useDeleteRelease(projectId)
 
   if (error) return <BlockError message={`Couldn't load releases. ${errorMessage(error)}`} onRetry={() => refetch()} />
-  if (isPending)
-    return (
-      <div className="flex flex-col gap-2" aria-hidden>
-        <Bar className="h-4 w-24" />
-        <Bar className="h-4 w-2/3" />
-      </div>
-    )
-  const releases = data as ReleaseWithAuthor[]
-  if (releases.length === 0) return <p className="text-sm text-muted-foreground">No Releases recorded yet.</p>
 
   return (
     <>
-      <ol className="flex flex-col gap-4" aria-label="Release history">
-        {releases.map((r, i) => (
-          <li key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 sm:grid-cols-[160px_minmax(0,1fr)_auto]">
-            <div className="flex flex-col">
-              <span className="truncate font-mono text-sm font-medium" title={r.version}>
-                {r.version}
-              </span>
-              <span className="text-xs text-muted-foreground" title={formatDateTime(r.released_at)}>
-                {formatDate(r.released_at)}
-                {i === 0 && ' · current'}
-              </span>
-            </div>
-            <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
-              {r.notes.trim() ? (
-                <Markdown className="prose-p:my-1">{r.notes}</Markdown>
-              ) : (
-                <p className="text-sm text-muted-foreground">No notes.</p>
-              )}
-              {r.author && <p className="mt-1 text-xs text-muted-foreground">Recorded by {r.author.display_name}</p>}
-            </div>
-            {editable && (
-              <div className="col-start-2 row-start-1 flex gap-0.5 sm:col-start-3">
-                <Button variant="ghost" size="icon-sm" aria-label={`Edit Release ${r.version}`} title={`Edit Release ${r.version}`} className="size-7" onClick={() => setEditing(r)}>
-                  <Pencil size={13} strokeWidth={1.75} />
-                </Button>
-                <Button variant="ghost" size="icon-sm" aria-label={`Delete Release ${r.version}`} title={`Delete Release ${r.version}`} className="size-7" onClick={() => setDeleting(r)}>
-                  <Trash size={13} strokeWidth={1.75} />
-                </Button>
-              </div>
-            )}
-          </li>
-        ))}
-      </ol>
+      {/* First open: the history is sketched in pencil from placeholder Releases until it loads. */}
+      <LoadingReveal pending={isPending}>
+        {(sketch) => (
+          <ReleaseList
+            releases={sketch ? sketchReleases(projectId, environmentId) : ((data ?? []) as ReleaseWithAuthor[])}
+            editable={editable}
+            onEdit={setEditing}
+            onDelete={setDeleting}
+          />
+        )}
+      </LoadingReveal>
 
       {editing && (
         <ReleaseDialog
@@ -182,5 +153,56 @@ export function ReleaseHistory({
         onConfirm={() => del.mutateAsync({ id: deleting!.id, environmentId })}
       />
     </>
+  )
+}
+
+function ReleaseList({
+  releases,
+  editable,
+  onEdit,
+  onDelete,
+}: {
+  releases: ReleaseWithAuthor[]
+  editable: boolean
+  onEdit: (release: Release) => void
+  onDelete: (release: Release) => void
+}) {
+  const revealKey = useRevealKey()
+  if (releases.length === 0) return <p className="text-sm text-muted-foreground">No Releases recorded yet.</p>
+
+  return (
+    <ol className="flex flex-col gap-4" aria-label="Release history">
+      {releases.map((r, i) => (
+        <li key={revealKey(r.id, i)} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 sm:grid-cols-[160px_minmax(0,1fr)_auto]">
+          <div className="flex flex-col">
+            <span className="truncate font-mono text-sm font-medium" title={r.version}>
+              {r.version}
+            </span>
+            <span className="text-xs text-muted-foreground" title={formatDateTime(r.released_at)}>
+              {formatDate(r.released_at)}
+              {i === 0 && ' · current'}
+            </span>
+          </div>
+          <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+            {r.notes.trim() ? (
+              <Markdown className="prose-p:my-1">{r.notes}</Markdown>
+            ) : (
+              <p className="text-sm text-muted-foreground">No notes.</p>
+            )}
+            {r.author && <p className="mt-1 text-xs text-muted-foreground">Recorded by {r.author.display_name}</p>}
+          </div>
+          {editable && (
+            <div className="col-start-2 row-start-1 flex gap-0.5 sm:col-start-3">
+              <Button variant="ghost" size="icon-sm" aria-label={`Edit Release ${r.version}`} title={`Edit Release ${r.version}`} className="size-7" onClick={() => onEdit(r)}>
+                <Pencil size={13} strokeWidth={1.75} />
+              </Button>
+              <Button variant="ghost" size="icon-sm" aria-label={`Delete Release ${r.version}`} title={`Delete Release ${r.version}`} className="size-7" onClick={() => onDelete(r)}>
+                <Trash size={13} strokeWidth={1.75} />
+              </Button>
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
   )
 }

@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CircleCheck, Ellipsis, Pencil, Plus, Trash } fro
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { StatusGlyph } from '@/components/StatusGlyph'
+import { useRevealKey } from '@/components/plot-reveal'
 import { FormDialog } from '@/components/FormDialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -61,6 +62,7 @@ export function BoardColumnView({
   const [blocked, setBlocked] = useState(false)
   const [adding, setAdding] = useState(false)
   const headingId = `col-${column.id}`
+  const revealKey = useRevealKey()
 
   return (
     <li
@@ -153,9 +155,9 @@ export function BoardColumnView({
 
       <div ref={setNodeRef} className="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          {tasks.map((task) => (
+          {tasks.map((task, i) => (
             <SortableTask
-              key={task.id}
+              key={revealKey(task.id, i)}
               task={task}
               labelById={labelById}
               memberById={memberById}

@@ -19,9 +19,10 @@ const byPosition = <T extends { position: number; created_at: string }>(a: T, b:
 /** Mutations share this key so realtime refetches wait until they settle. */
 const boardMutationKey = (projectId: string) => ['board-mutation', projectId]
 
-export function useBoard(projectId: string) {
+export function useBoard(projectId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.board(projectId),
+    enabled,
     queryFn: async (): Promise<BoardData> => {
       const [columns, tasks] = await Promise.all([
         supabase.from('board_columns').select('*').eq('project_id', projectId),
