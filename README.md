@@ -17,7 +17,7 @@ Full setup (Auth settings, SMTP, Vercel deploy, smoke test): [`docs/SETUP.md`](d
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Dev server on http://localhost:5173 |
+| `npm run dev` | Dev server on http://localhost:9900 |
 | `npm run build` | Type-check and production build to `dist/` |
 | `npm run lint` | oxlint |
 | `npm run preview` | Serve the production build locally |

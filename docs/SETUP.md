@@ -43,9 +43,9 @@ Run each migration once only, in order. If you set up the database earlier, run 
 
 **Authentication → URL Configuration**
 
-- **Site URL**: `http://localhost:5173` for now. Change it to the Vercel domain after deploying (step 6).
+- **Site URL**: `http://localhost:9900` for now. Change it to the Vercel domain after deploying (step 6).
 - **Redirect URLs** (add each):
-  - `http://localhost:5173/reset-password`
+  - `http://localhost:9900/reset-password`
   - `https://<your-vercel-domain>/reset-password` (after step 6)
   - `https://<your-vercel-domain>/**` (covers preview deployments under that domain)
 
@@ -77,7 +77,7 @@ VITE_SUPABASE_ANON_KEY=<anon key>
 
 ```bash
 npm install
-npm run dev                 # http://localhost:5173
+npm run dev                 # http://localhost:9900
 ```
 
 Restart `npm run dev` after changing `.env.local`.

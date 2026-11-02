@@ -39,7 +39,7 @@ Can come later (before deploy):
 
 - Authentication → Providers → Email: **"Confirm email" OFF**.
 - Custom SMTP: **Resend**. It's only needed for password-reset emails, but the built-in SMTP is rate-limited to a few per hour.
-- Site URL and Redirect URLs: the Vercel domain and `http://localhost:5173`, including `/reset-password`.
+- Site URL and Redirect URLs: the Vercel domain and `http://localhost:9900`, including `/reset-password`.
 - Apply the migration with `supabase db push`, or paste it into the SQL Editor.
 
 ## Settled decisions
