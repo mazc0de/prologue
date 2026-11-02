@@ -1,8 +1,9 @@
-import { AlertCircle } from 'lucide-react'
-import { useId, type ComponentProps, type ReactNode } from 'react'
+import { AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { useId, useState, type ComponentProps, type ReactNode } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -58,6 +59,46 @@ export function TextField({
   return (
     <Shell id={fieldId} label={label} hint={hint} error={error} hideLabel={hideLabel} containerClassName={containerClassName}>
       <Input id={fieldId} aria-invalid={error ? true : undefined} aria-describedby={describedBy(fieldId, error, hint)} {...props} />
+    </Shell>
+  )
+}
+
+/** A password input with a show/hide toggle at its end. */
+export function PasswordField({
+  label,
+  hint,
+  error,
+  hideLabel,
+  containerClassName,
+  id,
+  ...props
+}: Omit<ComponentProps<typeof Input>, 'type'> & ShellProps) {
+  const autoId = useId()
+  const fieldId = id ?? autoId
+  const [shown, setShown] = useState(false)
+  return (
+    <Shell id={fieldId} label={label} hint={hint} error={error} hideLabel={hideLabel} containerClassName={containerClassName}>
+      <InputGroup>
+        <InputGroupInput
+          id={fieldId}
+          type={shown ? 'text' : 'password'}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy(fieldId, error, hint)}
+          {...props}
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            size="icon-xs"
+            aria-label={shown ? 'Hide password' : 'Show password'}
+            title={shown ? 'Hide password' : 'Show password'}
+            aria-pressed={shown}
+            aria-controls={fieldId}
+            onClick={() => setShown((v) => !v)}
+          >
+            {shown ? <EyeOff /> : <Eye />}
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
     </Shell>
   )
 }

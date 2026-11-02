@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { FormError, TextField } from '@/components/Field'
+import { FormError, PasswordField, TextField } from '@/components/Field'
 import { normaliseEmail } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 import { AuthLayout } from './AuthLayout'
@@ -53,9 +53,8 @@ export function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
         />
         <div className="flex flex-col gap-2">
-          <TextField
+          <PasswordField
             label="Password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}
