@@ -53,8 +53,12 @@ A source-code repository belonging to a Project. A Project has at most one.
 _Avoid_: Repo link, codebase
 
 **Environment**:
-A named place where a Repository's code runs, such as Production or Development, tying together the branch it is deployed from, its .env, and the Version running there. Every Environment belongs to exactly one Repository.
+A named place where a Repository's code runs, such as Production or Development, tying together the branch it is deployed from, its .env, its Credentials, and the Version running there. Every Environment belongs to exactly one Repository.
 _Avoid_: Stage, server, deployment
+
+**Credential**:
+A test account for logging in to an Environment: a label plus named fields such as Merchant Code, CID, Username and Password. An Environment can have many. Only Owners and Editors can see them.
+_Avoid_: Account, login, secret
 
 **Environment Kind**:
 What sort of Environment it is, regardless of its name: Production, Staging, Development, Preview, or Other. The dashboard shows the Version of the Repository's Production Environment.

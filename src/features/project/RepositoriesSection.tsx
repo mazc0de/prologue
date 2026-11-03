@@ -1,4 +1,4 @@
-import { ChevronDown, Ellipsis, ExternalLink, FileKey, GitBranch, Pencil, Plus, Rocket, Trash } from 'lucide-react'
+import { ChevronDown, Ellipsis, ExternalLink, FileKey, GitBranch, KeyRound, Pencil, Plus, Rocket, Trash } from 'lucide-react'
 import { useState } from 'react'
 import { KindPill } from '@/components/badges'
 import { Button } from '@/components/ui/button'
@@ -16,9 +16,10 @@ import {
 import { ProviderIcon } from '@/components/ProviderIcon'
 import { cn } from '@/lib/utils'
 import { errorMessage } from '@/lib/errors'
-import { formatDateTime, relativeTime } from '@/lib/format'
+import { formatDateTime, pluralize, relativeTime } from '@/lib/format'
 import type { EnvironmentVersion } from '@/lib/types'
 import { EnvironmentDialog, RepositoryDialog } from './deploymentDialogs'
+import { CredentialsDialog } from './CredentialsDialog'
 import { EnvFileDialog } from './EnvFileDialog'
 import {
   useDeleteEnvironment,
@@ -168,7 +169,7 @@ function RepositoryBlock({ repo, projectId, editable, versions }: RepositoryBloc
         body={
           <p>
             Delete <strong className="font-medium">{repo.name}</strong> and its {repo.environments.length} Environment
-            {repo.environments.length === 1 ? '' : 's'}, their .env files and Releases?
+            {repo.environments.length === 1 ? '' : 's'}, their .env files, Credentials and Releases?
           </p>
         }
         onConfirm={() => del.mutateAsync(repo.id).then(() => notify.success('Repository deleted'))}
@@ -179,7 +180,7 @@ function RepositoryBlock({ repo, projectId, editable, versions }: RepositoryBloc
 
 /*
  * One Environment as a ledger row: Kind · name · branch | Version (the latest
- * Release) · when | .env | actions. Expanding shows the release history.
+ * Release) · when | .env and Credentials | actions. Expanding shows the release history.
  */
 function EnvironmentRow({
   env,
@@ -196,6 +197,7 @@ function EnvironmentRow({
   const [releasing, setReleasing] = useState(false)
   const [editing, setEditing] = useState(false)
   const [viewingEnv, setViewingEnv] = useState(false)
+  const [credentials, setCredentials] = useState<'view' | 'add' | null>(null)
   const [deleting, setDeleting] = useState(false)
   const del = useDeleteEnvironment(projectId)
 
@@ -233,29 +235,51 @@ function EnvironmentRow({
           )}
         </div>
 
-        {/* .env is readable by Owners and Editors only (RLS), so Viewers just get told where it lives. */}
-        <div className="col-span-2 flex min-w-0 md:col-span-1">
+        {/* .env and Credentials are readable by Owners and Editors only (RLS), so Viewers just get told so. */}
+        <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 md:col-span-1">
           {!editable ? (
-            <span className="text-xs text-muted-foreground">.env: Editors only</span>
-          ) : env.env_file_updated_at ? (
-            <button
-              type="button"
-              onClick={() => setViewingEnv(true)}
-              className="inline-flex min-w-0 items-center gap-1.5 text-xs text-foreground hover:text-primary"
-              title={`Saved ${formatDateTime(env.env_file_updated_at)}`}
-            >
-              <FileKey size={13} strokeWidth={1.75} className="flex-none text-muted-foreground" aria-hidden />
-              <span className="font-mono">.env</span>
-              <span className="truncate text-muted-foreground">· {relativeTime(env.env_file_updated_at)}</span>
-            </button>
+            <span className="text-xs text-muted-foreground">.env & Credentials: Editors only</span>
           ) : (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <Plus size={13} strokeWidth={1.75} aria-hidden /> Add .env
-            </button>
+            <>
+              {env.env_file_updated_at ? (
+                <button
+                  type="button"
+                  onClick={() => setViewingEnv(true)}
+                  className="inline-flex min-w-0 items-center gap-1.5 text-xs text-foreground hover:text-primary"
+                  title={`Saved ${formatDateTime(env.env_file_updated_at)}`}
+                >
+                  <FileKey size={13} strokeWidth={1.75} className="flex-none text-muted-foreground" aria-hidden />
+                  <span className="font-mono">.env</span>
+                  <span className="truncate text-muted-foreground">· {relativeTime(env.env_file_updated_at)}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Plus size={13} strokeWidth={1.75} aria-hidden /> Add .env
+                </button>
+              )}
+              {env.credential_count > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setCredentials('view')}
+                  className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-primary"
+                >
+                  <KeyRound size={13} strokeWidth={1.75} className="flex-none text-muted-foreground" aria-hidden />
+                  {pluralize(env.credential_count, 'Credential')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setCredentials('add')}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Plus size={13} strokeWidth={1.75} aria-hidden /> Add Credential
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -306,6 +330,14 @@ function EnvironmentRow({
       {editing && (
         <EnvironmentDialog projectId={projectId} repositoryId={env.repository_id} environment={env} onClose={() => setEditing(false)} />
       )}
+      {credentials && (
+        <CredentialsDialog
+          projectId={projectId}
+          environment={env}
+          startAdding={credentials === 'add'}
+          onClose={() => setCredentials(null)}
+        />
+      )}
       {viewingEnv && (
         <EnvFileDialog
           environment={env}
@@ -323,7 +355,7 @@ function EnvironmentRow({
         confirmLabel="Delete"
         body={
           <p>
-            Delete <strong className="font-medium">{env.name}</strong> with its .env and release history?
+            Delete <strong className="font-medium">{env.name}</strong> with its .env, Credentials and release history?
           </p>
         }
         onConfirm={() => del.mutateAsync(env.id).then(() => notify.success(`${env.name} deleted`))}

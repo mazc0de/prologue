@@ -16,6 +16,13 @@ export type QuickLink = Tables<'quick_links'>
 export type Repository = Tables<'repositories'>
 export type Environment = Tables<'environments'>
 export type EnvironmentEnvFile = Tables<'environment_env_files'>
+export type EnvironmentCredential = Omit<Tables<'environment_credentials'>, 'fields'> & { fields: CredentialField[] }
+
+/** One named value of a Credential, e.g. { name: 'Username', value: 'demo' }. */
+export interface CredentialField {
+  name: string
+  value: string
+}
 export type EnvironmentVersion = Tables<'environment_versions'>
 export type Release = Tables<'releases'>
 export type BoardColumn = Tables<'board_columns'>

@@ -37,6 +37,7 @@ function sketchEnvironment(projectId: string, kind: EnvironmentKind, branch: str
     created_at: NOW,
     updated_at: NOW,
     env_file_updated_at: NOW,
+    credential_count: 1,
   }
 }
 

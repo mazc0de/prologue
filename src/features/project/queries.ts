@@ -4,8 +4,11 @@ import { normaliseEmail } from '@/lib/format'
 import { positionAfterLast } from '@/lib/position'
 import { queryKeys } from '@/lib/queryKeys'
 import { supabase } from '@/lib/supabase'
+import type { Json } from '@/lib/database.types'
 import type {
+  CredentialField,
   Environment,
+  EnvironmentCredential,
   EnvironmentKind,
   ProjectCard,
   ProjectRole,
@@ -66,14 +69,18 @@ export function useDeleteProject() {
 // ---------------------------------------------------------------------------
 
 /**
- * An Environment plus when its .env was last saved. Only Owners and Editors can read .env files
- * (RLS), so for a Viewer `env_file_updated_at` is always null, whether or not a .env exists.
+ * An Environment plus when its .env was last saved and how many Credentials it has. Only Owners
+ * and Editors can read .env files and Credentials (RLS), so for a Viewer these are always
+ * null and 0, whatever exists.
  */
-export type EnvironmentSummary = Environment & { env_file_updated_at: string | null }
+export type EnvironmentSummary = Environment & { env_file_updated_at: string | null; credential_count: number }
 export type RepositoryTree = Repository & { environments: EnvironmentSummary[] }
 
 type RepositoryRow = Repository & {
-  environments: (Environment & { environment_env_files: { updated_at: string }[] })[]
+  environments: (Environment & {
+    environment_env_files: { updated_at: string }[]
+    environment_credentials: { id: string }[]
+  })[]
 }
 
 export function useRepositories(projectId: string, enabled = true) {
@@ -85,7 +92,7 @@ export function useRepositories(projectId: string, enabled = true) {
         await supabase
           .from('repositories')
           // Only the timestamp: the .env content itself is fetched on demand (useEnvFile).
-          .select('*, environments(*, environment_env_files(updated_at))')
+          .select('*, environments(*, environment_env_files(updated_at), environment_credentials(id))')
           .eq('project_id', projectId)
           .order('position')
           .order('created_at'),
@@ -95,10 +102,13 @@ export function useRepositories(projectId: string, enabled = true) {
       return rows.map(
         (repo): RepositoryTree => ({
           ...repo,
-          environments: [...repo.environments].sort(byPos).map(({ environment_env_files, ...env }) => ({
-            ...env,
-            env_file_updated_at: environment_env_files[0]?.updated_at ?? null,
-          })),
+          environments: [...repo.environments]
+            .sort(byPos)
+            .map(({ environment_env_files, environment_credentials, ...env }) => ({
+              ...env,
+              env_file_updated_at: environment_env_files[0]?.updated_at ?? null,
+              credential_count: environment_credentials.length,
+            })),
         }),
       )
     },
@@ -250,6 +260,85 @@ export function useDeleteEnvironment(projectId: string) {
   const invalidate = useInvalidateDeployments(projectId)
   return useMutation({
     mutationFn: async (id: string) => expectRows(await supabase.from('environments').delete().eq('id', id).select('id')),
+    onSuccess: invalidate,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Credentials: test accounts per Environment (Owners and Editors only)
+// ---------------------------------------------------------------------------
+
+export function useCredentials(environmentId: string) {
+  return useQuery({
+    queryKey: queryKeys.credentials(environmentId),
+    queryFn: async () =>
+      unwrap(
+        await supabase
+          .from('environment_credentials')
+          .select('*')
+          .eq('environment_id', environmentId)
+          .order('position')
+          .order('created_at'),
+      ) as unknown as EnvironmentCredential[],
+  })
+}
+
+export interface CredentialInput {
+  id?: string
+  environment_id: string
+  label: string
+  fields: CredentialField[]
+}
+
+function useInvalidateCredentials(projectId: string) {
+  const queryClient = useQueryClient()
+  const invalidateDeployments = useInvalidateDeployments(projectId)
+  return (environmentId: string) => {
+    invalidateDeployments() // the Environment row shows the Credential count
+    queryClient.invalidateQueries({ queryKey: queryKeys.credentials(environmentId) })
+  }
+}
+
+export function useSaveCredential(projectId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = useInvalidateCredentials(projectId)
+  return useMutation({
+    mutationFn: async (input: CredentialInput) => {
+      const row = {
+        label: input.label.trim(),
+        fields: input.fields
+          .map((f) => ({ name: f.name.trim(), value: f.value }))
+          .filter((f) => f.name || f.value) as unknown as Json,
+      }
+      if (input.id) {
+        expectRows(await supabase.from('environment_credentials').update(row).eq('id', input.id).select('id'))
+      } else {
+        const siblings = queryClient.getQueryData<EnvironmentCredential[]>(queryKeys.credentials(input.environment_id)) ?? []
+        expectRows(
+          await supabase
+            .from('environment_credentials')
+            .insert({
+              ...row,
+              environment_id: input.environment_id,
+              project_id: projectId,
+              position: positionAfterLast(siblings.map((c) => c.position)),
+            })
+            .select('id'),
+        )
+      }
+      return input.environment_id
+    },
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteCredential(projectId: string) {
+  const invalidate = useInvalidateCredentials(projectId)
+  return useMutation({
+    mutationFn: async ({ id, environmentId }: { id: string; environmentId: string }) => {
+      expectRows(await supabase.from('environment_credentials').delete().eq('id', id).select('id'))
+      return environmentId
+    },
     onSuccess: invalidate,
   })
 }

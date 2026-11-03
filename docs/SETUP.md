@@ -27,9 +27,11 @@ Everything on the Supabase side is done in the dashboard; no Supabase CLI is nee
 5. In a new query, paste `supabase/migrations/20261102030000_environment_env_files.sql` and click **Run**.
    It **drops `environment_urls` and every Environment URL in it** and adds `environment_env_files`
    (one .env per Environment, readable by Owners and Editors only).
-6. Check:
+6. In a new query, paste `supabase/migrations/20261103000000_environment_credentials.sql` and click **Run**.
+   It adds `environment_credentials` (test accounts per Environment, Owners and Editors only).
+7. Check:
    - **Table Editor** lists `profiles`, `projects`, `project_members`, `project_pins`, `invitations`,
-     `quick_links`, `repositories`, `environments`, `environment_env_files`, `releases`, `board_columns`,
+     `quick_links`, `repositories`, `environments`, `environment_env_files`, `environment_credentials`, `releases`, `board_columns`,
      `labels`, `tasks` and `task_labels`.
    - **Database → Publications → supabase_realtime** includes `tasks`, `board_columns`, `task_labels`
      and `invitations`.

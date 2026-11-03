@@ -46,6 +46,48 @@ export type Database = {
           },
         ];
       };
+      environment_credentials: {
+        Row: {
+          created_at: string;
+          environment_id: string;
+          fields: Json;
+          id: string;
+          label: string;
+          position: number;
+          project_id: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          environment_id: string;
+          fields?: Json;
+          id?: string;
+          label: string;
+          position?: number;
+          project_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          environment_id?: string;
+          fields?: Json;
+          id?: string;
+          label?: string;
+          position?: number;
+          project_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "environment_credentials_environment_id_project_id_fkey";
+            columns: ["environment_id", "project_id"];
+            isOneToOne: false;
+            referencedRelation: "environments";
+            referencedColumns: ["id", "project_id"];
+          },
+        ];
+      };
       environment_env_files: {
         Row: {
           content: string;

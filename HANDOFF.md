@@ -84,7 +84,7 @@ Top: project info. Below it: the Board.
 - **Header**: name, Project Status, Tags (free text, max 20, column `tech_tags`), description (**markdown**).
 - **Repository**: **one per Project** (unique index, migration `20261102010000_single_repository.sql`). Fields: name and URL. `provider` (github/gitlab/bitbucket/other) is a generated column, used for the icon. `position` is left over from when a Project could have several.
   - Create it with RPC **`create_repository(project_id, name, url, production_branch, development_branch?)`**: the user types the branches; it inserts the Repository plus a Production Environment (and a Development one when that branch is given) in one transaction. There's no longer a trigger with hard-coded `main` / `develop`.
-- **Environments** per Repository: name (free text), **kind** (production/staging/development/preview/other, used for logic and badge color), branch, and an optional **.env** (`environment_env_files`, migration `20261102030000_environment_env_files.sql`): plain text, one per Environment, readable by **Owners and Editors only** (Viewers can't read it, not even through the API). Labelled URLs were removed.
+- **Environments** per Repository: name (free text), **kind** (production/staging/development/preview/other, used for logic and badge color), branch, and an optional **.env** (`environment_env_files`, migration `20261102030000_environment_env_files.sql`): plain text, one per Environment, readable by **Owners and Editors only** (Viewers can't read it, not even through the API). Labelled URLs were removed. Also any number of **Credentials** (`environment_credentials`, migration `20261103000000_environment_credentials.sql`): test accounts with a label and named fields stored as jsonb, Owners and Editors only.
 - **Version** = the latest Release of the Environment (ADR 0002). Read it from the **`environment_versions`** view. There's no editable version field. "Bump version" means creating a **Release** (version as free text, notes in markdown, `released_at` that can be backdated). Show the release history per Environment.
 - **Quick Links**: label + URL.
 - **Members**: list with role; the Owner can change roles, remove Members, and invite.
@@ -108,7 +108,7 @@ Top: project info. Below it: the Board.
 - **RLS-blocked UPDATE/DELETE fail silently** (0 rows, no error). Use `.select()` after mutations and treat an empty result as "not allowed".
 - `supabase.from('projects').insert(...).select()` works for the creator, because the select policy also allows `owner_id = auth.uid()` before the membership trigger runs.
 - Column-level grants: clients may only update `projects(name, description, status, tech_tags)`, `project_members(role)`, and `profiles(display_name)`. Sending other columns in an update errors.
-- Child tables carry a denormalised `project_id`, guarded by composite FKs. **Always send `project_id`** when inserting environments, environment_env_files, releases, tasks, and task_labels.
+- Child tables carry a denormalised `project_id`, guarded by composite FKs. **Always send `project_id`** when inserting environments, environment_env_files, environment_credentials, releases, tasks, and task_labels.
 - `invitations.email` must be lowercase and trimmed (CHECK constraint). Normalise on the client.
 - Access helpers live in schema `private` (not exposed). Public RPCs: `check_invitee`, `project_pending_invitations`, `my_pending_invitations`, `accept_invitation`, `decline_invitation`, `create_repository` (security invoker, so RLS applies).
 
@@ -156,4 +156,4 @@ Each step should end with a working, type-checked app (`npm run build`).
 
 Project notes (markdown), activity log, ⌘K command palette, GitHub integration (auto-fetch branches and tags), Vercel deploy status per Environment, ownership transfer, avatar upload, multiple assignees, workspaces/teams, email delivery of Invitations, email confirmation (see ADR 0001 for when to turn it on).
 
-An Environment's `.env` is the one place Prologue stores env variables and credentials. It is plain text in Postgres, protected only by RLS (Owner/Editor), not encrypted. Don't add secrets anywhere else, and never let Viewers read `environment_env_files`.
+An Environment's `.env` and its Credentials are the only places Prologue stores env variables and credentials. It is plain text in Postgres, protected only by RLS (Owner/Editor), not encrypted. Don't add secrets anywhere else, and never let Viewers read `environment_env_files` or `environment_credentials`.
