@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase'
 import type {
   Environment,
   EnvironmentKind,
-  EnvironmentUrl,
   ProjectCard,
   ProjectRole,
   ProjectStatus,
@@ -63,11 +62,19 @@ export function useDeleteProject() {
 }
 
 // ---------------------------------------------------------------------------
-// Repository → Environments → URLs (one Repository per Project)
+// Repository → Environments → .env (one Repository per Project)
 // ---------------------------------------------------------------------------
 
-export type EnvironmentWithUrls = Environment & { environment_urls: EnvironmentUrl[] }
-export type RepositoryTree = Repository & { environments: EnvironmentWithUrls[] }
+/**
+ * An Environment plus when its .env was last saved. Only Owners and Editors can read .env files
+ * (RLS), so for a Viewer `env_file_updated_at` is always null, whether or not a .env exists.
+ */
+export type EnvironmentSummary = Environment & { env_file_updated_at: string | null }
+export type RepositoryTree = Repository & { environments: EnvironmentSummary[] }
+
+type RepositoryRow = Repository & {
+  environments: (Environment & { environment_env_files: { updated_at: string }[] })[]
+}
 
 export function useRepositories(projectId: string, enabled = true) {
   return useQuery({
@@ -77,20 +84,23 @@ export function useRepositories(projectId: string, enabled = true) {
       const rows = unwrap(
         await supabase
           .from('repositories')
-          .select('*, environments(*, environment_urls(*))')
+          // Only the timestamp: the .env content itself is fetched on demand (useEnvFile).
+          .select('*, environments(*, environment_env_files(updated_at))')
           .eq('project_id', projectId)
           .order('position')
           .order('created_at'),
-      ) as RepositoryTree[]
+      ) as RepositoryRow[]
       const byPos = <T extends { position: number; created_at: string }>(a: T, b: T) =>
         a.position - b.position || a.created_at.localeCompare(b.created_at)
-      return rows.map((repo) => ({
-        ...repo,
-        environments: [...repo.environments].sort(byPos).map((env) => ({
-          ...env,
-          environment_urls: [...env.environment_urls].sort(byPos),
-        })),
-      }))
+      return rows.map(
+        (repo): RepositoryTree => ({
+          ...repo,
+          environments: [...repo.environments].sort(byPos).map(({ environment_env_files, ...env }) => ({
+            ...env,
+            env_file_updated_at: environment_env_files[0]?.updated_at ?? null,
+          })),
+        }),
+      )
     },
   })
 }
@@ -103,7 +113,7 @@ export function useEnvironmentVersions(projectId: string) {
   })
 }
 
-/** Invalidate everything that can change when repo/env/url/release data changes. */
+/** Invalidate everything that can change when repo/env/.env/release data changes. */
 function useInvalidateDeployments(projectId: string) {
   const queryClient = useQueryClient()
   return () => {
@@ -163,7 +173,22 @@ export interface EnvironmentInput {
   name: string
   kind: EnvironmentKind
   branch: string
-  urls: { id?: string; label: string; url: string }[]
+  /** The new .env content; empty deletes it, undefined leaves it untouched. */
+  envFile?: string
+}
+
+/** One Environment's .env content, or null when it has none. Owners and Editors only. */
+export function useEnvFile(environmentId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.envFile(environmentId ?? ''),
+    enabled: !!environmentId,
+    queryFn: async () => {
+      const row = unwrap(
+        await supabase.from('environment_env_files').select('content').eq('environment_id', environmentId!).maybeSingle(),
+      ) as { content: string } | null
+      return row?.content ?? null
+    },
+  })
 }
 
 export function useSaveEnvironment(projectId: string) {
@@ -199,30 +224,25 @@ export function useSaveEnvironment(projectId: string) {
         environmentId = rows[0].id
       }
 
-      // Sync labelled URLs: delete removed, update kept, insert new.
-      const current = environmentId
-        ? (unwrap(await supabase.from('environment_urls').select('id').eq('environment_id', environmentId)) ?? [])
-        : []
-      const keepIds = new Set(input.urls.filter((u) => u.id).map((u) => u.id!))
-      const toDelete = current.map((u) => u.id).filter((id) => !keepIds.has(id))
-      if (toDelete.length) {
-        expectRows(await supabase.from('environment_urls').delete().in('id', toDelete).select('id'))
+      if (input.envFile === undefined) return environmentId
+      const content = input.envFile.trimEnd()
+      if (content) {
+        expectRows(
+          await supabase
+            .from('environment_env_files')
+            .upsert({ environment_id: environmentId, project_id: projectId, content }, { onConflict: 'environment_id' })
+            .select('environment_id'),
+        )
+      } else {
+        // May match no row (there was no .env), so don't insist on one.
+        unwrap(await supabase.from('environment_env_files').delete().eq('environment_id', environmentId))
       }
-      for (const [index, u] of input.urls.entries()) {
-        const row = { label: u.label.trim() || null, url: u.url.trim(), position: (index + 1) * 1000 }
-        if (u.id) {
-          expectRows(await supabase.from('environment_urls').update(row).eq('id', u.id).select('id'))
-        } else {
-          expectRows(
-            await supabase
-              .from('environment_urls')
-              .insert({ ...row, environment_id: environmentId, project_id: projectId })
-              .select('id'),
-          )
-        }
-      }
+      return environmentId
     },
-    onSuccess: invalidate,
+    onSuccess: (environmentId) => {
+      invalidate()
+      queryClient.invalidateQueries({ queryKey: queryKeys.envFile(environmentId) })
+    },
   })
 }
 

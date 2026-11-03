@@ -15,7 +15,7 @@ export type ProjectMember = Tables<'project_members'>
 export type QuickLink = Tables<'quick_links'>
 export type Repository = Tables<'repositories'>
 export type Environment = Tables<'environments'>
-export type EnvironmentUrl = Tables<'environment_urls'>
+export type EnvironmentEnvFile = Tables<'environment_env_files'>
 export type EnvironmentVersion = Tables<'environment_versions'>
 export type Release = Tables<'releases'>
 export type BoardColumn = Tables<'board_columns'>
@@ -31,7 +31,8 @@ export const ENVIRONMENT_KINDS: EnvironmentKind[] = ['production', 'staging', 'd
 export const TASK_PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent']
 export const LABEL_COLORS: LabelColor[] = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'violet', 'pink']
 
-export const MAX_TECH_TAGS = 20
+/** Tags are stored in projects.tech_tags (the column kept its old name). */
+export const MAX_TAGS = 20
 
 export const canEdit = (role: ProjectRole | null | undefined) => role === 'owner' || role === 'editor'
 export const isOwner = (role: ProjectRole | null | undefined) => role === 'owner'

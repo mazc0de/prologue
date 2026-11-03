@@ -33,7 +33,7 @@ Full setup (Auth settings, SMTP, Vercel deploy, smoke test): [`docs/SETUP.md`](d
 | `src/features/dashboard/` | Dashboard overview (KPIs, charts), Project cards (from the `project_cards` view), pins, New Project. |
 | `src/features/projects/` | `/projects`: every Project card, status tabs, search. |
 | `src/features/invitations/` | Header bell with realtime, accept / decline. |
-| `src/features/project/` | Project detail: header, the Repository → Environments → URLs, Releases, Quick Links, Members, invite. |
+| `src/features/project/` | Project detail: header, the Repository → Environments → .env, Releases, Quick Links, Members, invite. |
 | `src/features/board/` | Board: Columns, Tasks, Labels, drag and drop with fractional positions, realtime. |
 | `src/components/ui/` | **shadcn/ui** (Radix, style `new-york`, see `components.json`). Add more with `npx shadcn@latest add <name>`. Local changes: Button `loading`, Badge `soft` / `destructive-soft`, Progress `indicatorClassName`, flat Card. Re-adding a component with `--overwrite` drops these. |
 | `src/components/` | App compositions on shadcn: `FormDialog`, `ConfirmDialog`, `Field` (TextField / TextAreaField / SelectField / FormError), `DatePicker`, `Segmented`, `StatusGlyph` (the ink state glyphs), `TagInput`, `Markdown`, domain badges, `Avatar`. |

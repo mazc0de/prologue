@@ -59,7 +59,7 @@ export function StatStrip({ stats }: { stats: Stat[] }) {
 /* ------------------------------------------------------------------ hero: latest Project + Board strip */
 
 /**
- * The most recently active Project: status, Production Version, Repository link, Tech Tags and a
+ * The most recently active Project: status, Production Version, Repository link, Tags and a
  * meta line on the left; its Board as a "pipeline" of Columns on the right, whose Task counts sum
  * exactly to the total in the caption.
  */

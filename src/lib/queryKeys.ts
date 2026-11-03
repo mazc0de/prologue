@@ -8,6 +8,7 @@ export const queryKeys = {
   repositories: (projectId: string) => ['project', projectId, 'repositories'] as const,
   environmentVersions: (projectId: string) => ['project', projectId, 'environment-versions'] as const,
   releases: (environmentId: string) => ['releases', environmentId] as const,
+  envFile: (environmentId: string) => ['env-file', environmentId] as const,
   quickLinks: (projectId: string) => ['project', projectId, 'quick-links'] as const,
   members: (projectId: string) => ['project', projectId, 'members'] as const,
   pendingInvitations: (projectId: string) => ['project', projectId, 'pending-invitations'] as const,

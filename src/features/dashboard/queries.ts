@@ -4,11 +4,43 @@ import { queryKeys } from '@/lib/queryKeys'
 import { supabase } from '@/lib/supabase'
 import type { ProjectCard, Task } from '@/lib/types'
 
+const projectCardsQuery = {
+  queryKey: queryKeys.projectCards,
+  queryFn: async () => unwrap(await supabase.from('project_cards').select('*')) as ProjectCard[],
+}
+
 export function useProjectCards() {
-  return useQuery({
-    queryKey: queryKeys.projectCards,
-    queryFn: async () => unwrap(await supabase.from('project_cards').select('*')) as ProjectCard[],
-  })
+  return useQuery(projectCardsQuery)
+}
+
+/**
+ * Every Tag used on the current user's Projects, most used first, for TagInput to offer.
+ * Tags that differ only in case count as one, spelled the way most Projects spell it.
+ */
+export function useTagSuggestions(): string[] {
+  const { data } = useQuery({ ...projectCardsQuery, select: tagsByUse })
+  return data ?? NO_TAGS
+}
+
+const NO_TAGS: string[] = []
+
+function tagsByUse(cards: ProjectCard[]): string[] {
+  // lower-cased tag → how often each spelling is used
+  const spellings = new Map<string, Map<string, number>>()
+  for (const tag of cards.flatMap((c) => c.tech_tags)) {
+    const key = tag.toLowerCase()
+    const counts = spellings.get(key) ?? new Map<string, number>()
+    counts.set(tag, (counts.get(tag) ?? 0) + 1)
+    spellings.set(key, counts)
+  }
+  return [...spellings.values()]
+    .map((counts) => {
+      const [spelling] = [...counts].sort((a, b) => b[1] - a[1])[0]
+      const uses = [...counts.values()].reduce((sum, n) => sum + n, 0)
+      return { spelling, uses }
+    })
+    .sort((a, b) => b.uses - a.uses || a.spelling.localeCompare(b.spelling))
+    .map((t) => t.spelling)
 }
 
 /** Pinned first, then most recent activity. */

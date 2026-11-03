@@ -84,7 +84,7 @@ export function ProjectCardView({ card, progress }: { card: ProjectCard; progres
       </p>
 
       {tags.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tech Tags">
+        <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tags">
           {tags.map((t, i) => (
             <li key={revealKey(t, i)}>
               <Badge variant="outline" className="data bg-card font-normal">
@@ -107,9 +107,13 @@ export function ProjectCardView({ card, progress }: { card: ProjectCard; progres
       </div>
 
       <div className="data mt-4 flex items-center gap-2 border-t pt-3 text-xs text-faint">
-        <span className="truncate text-foreground" title={card.production_version ? `Production ${card.production_version}` : undefined}>
-          {card.production_version ?? 'not released'}
-        </span>
+        {card.production_version ? (
+          <Badge variant="outline" className="data min-w-0 bg-card font-medium text-foreground" title={`Production ${card.production_version}`}>
+            <span className="truncate">{card.production_version}</span>
+          </Badge>
+        ) : (
+          <span className="truncate">not released</span>
+        )}
         <span>·</span>
         <span className="flex-none">
           <span className="text-foreground">{card.open_task_count ?? 0}</span> open

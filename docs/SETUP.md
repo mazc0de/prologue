@@ -24,9 +24,12 @@ Everything on the Supabase side is done in the dashboard; no Supabase CLI is nee
    any Project still has more than one Repository: delete the extras first.
 4. In a new query, paste `supabase/migrations/20261102020000_project_status_active_inactive.sql` and click
    **Run**. Project Status becomes Active / Inactive; existing Paused, Done and Archived Projects turn Inactive.
-5. Check:
+5. In a new query, paste `supabase/migrations/20261102030000_environment_env_files.sql` and click **Run**.
+   It **drops `environment_urls` and every Environment URL in it** and adds `environment_env_files`
+   (one .env per Environment, readable by Owners and Editors only).
+6. Check:
    - **Table Editor** lists `profiles`, `projects`, `project_members`, `project_pins`, `invitations`,
-     `quick_links`, `repositories`, `environments`, `environment_urls`, `releases`, `board_columns`,
+     `quick_links`, `repositories`, `environments`, `environment_env_files`, `releases`, `board_columns`,
      `labels`, `tasks` and `task_labels`.
    - **Database → Publications → supabase_realtime** includes `tasks`, `board_columns`, `task_labels`
      and `invitations`.

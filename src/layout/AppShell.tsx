@@ -37,7 +37,7 @@ import { AccountDialog } from './AccountDialog'
 
 /*
  * App shell in the e-ink paper language (DESIGN.md): a ~240px paper sidebar with a hairline right
- * border (wordmark, ⌘K search, nav with a 3px ink rule on the active item, Pinned / Recent Projects
+ * border (wordmark, ⌘K search, nav with a 3px ink rule on the active item, Pinned / Active Projects
  * led by ink glyphs, a Tasks-done meter and the user row) beside the page. Each page draws its own
  * 52px PageHeader. Collapses to icons on desktop (⌘/Ctrl+B) and becomes a Sheet on phones.
  */
@@ -56,7 +56,7 @@ export function AppShell() {
 }
 
 /**
- * Searches Projects by name, description and Tech Tag. The query lives in the Projects page's URL
+ * Searches Projects by name, description and Tag. The query lives in the Projects page's URL
  * (`/projects?q=`), so typing anywhere else takes you there. ⌘K / Ctrl+K focuses it.
  */
 function SearchBox() {
@@ -180,7 +180,10 @@ function AppSidebar() {
   const sorted = useMemo(() => sortCards(cards.filter((c) => c.status === 'active')), [cards])
   const activeIds = useMemo(() => new Set(sorted.map((c) => c.id)), [sorted])
   const pinned = sorted.filter((c) => c.pinned_at)
-  const recent = sorted.filter((c) => !c.pinned_at).slice(0, 6)
+  // Every other Active Project, A to Z, so any of them is one click away.
+  const others = sorted
+    .filter((c) => !c.pinned_at)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 
   // The phone Sheet closes itself after navigating.
   useEffect(() => setOpenMobile(false), [pathname, setOpenMobile])
@@ -214,7 +217,7 @@ function AppSidebar() {
         </SidebarGroup>
 
         {pinned.length > 0 && <ProjectGroup label="Pinned" items={pinned} pathname={pathname} />}
-        {recent.length > 0 && <ProjectGroup label="Recent" items={recent} pathname={pathname} />}
+        {others.length > 0 && <ProjectGroup label="Active Projects" items={others} pathname={pathname} />}
       </SidebarContent>
 
       <SidebarFooter className="gap-2 px-3 pb-3">

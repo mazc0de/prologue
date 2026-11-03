@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { TagInput } from '@/components/TagInput'
 import { notify } from '@/lib/notify'
-import { useTogglePin } from '@/features/dashboard/queries'
+import { useTagSuggestions, useTogglePin } from '@/features/dashboard/queries'
 import { errorMessage } from '@/lib/errors'
 import { relativeTime } from '@/lib/format'
 import { canEdit, capitalize, isOwner, PROJECT_STATUSES, type ProjectCard, type ProjectStatus } from '@/lib/types'
@@ -110,7 +110,7 @@ export function ProjectHeader({ project }: { project: ProjectCard }) {
       </div>
 
       {project.tech_tags.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Tech Tags">
+        <ul className="flex flex-wrap gap-1.5" aria-label="Tags">
           {project.tech_tags.map((t) => (
             <li key={t} className="data inline-flex h-6 items-center rounded-sm border bg-card px-2 text-xs">
               {t}
@@ -201,6 +201,7 @@ export function EditProjectDialog({ project, onClose }: { project: ProjectCard; 
   const [status, setStatus] = useState<ProjectStatus>(project.status)
   const [tags, setTags] = useState(project.tech_tags)
   const update = useUpdateProject(project.id)
+  const tagSuggestions = useTagSuggestions()
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -236,7 +237,7 @@ export function EditProjectDialog({ project, onClose }: { project: ProjectCard; 
           />
         </div>
         <MarkdownField label="Description" value={description} onChange={setDescription} rows={10} />
-        <TagInput label="Tech Tags" value={tags} onChange={setTags} />
+        <TagInput label="Tags" value={tags} onChange={setTags} suggestions={tagSuggestions} />
       </form>
     </FormDialog>
   )

@@ -6,13 +6,14 @@ import { FormError, TextField } from '@/components/Field'
 import { MarkdownField } from '@/components/Markdown'
 import { TagInput } from '@/components/TagInput'
 import { errorMessage } from '@/lib/errors'
-import { useCreateProject } from './queries'
+import { useCreateProject, useTagSuggestions } from './queries'
 
 export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const create = useCreateProject()
+  const tagSuggestions = useTagSuggestions()
   const navigate = useNavigate()
 
   function onSubmit(e: FormEvent) {
@@ -57,7 +58,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
           rows={5}
           placeholder="What is it, who is it for, where does it stand?"
         />
-        <TagInput label="Tech Tags" value={tags} onChange={setTags} />
+        <TagInput label="Tags" value={tags} onChange={setTags} suggestions={tagSuggestions} />
       </form>
     </FormDialog>
   )

@@ -13,7 +13,7 @@ export function progressByProject(tasks: DashboardTask[]) {
   return map
 }
 
-/** Name, description or Tech Tag contains the query (case-insensitive). */
+/** Name, description or Tag contains the query (case-insensitive). */
 export function matchesQuery(card: ProjectCard, q: string) {
   if (!q) return true
   const needle = q.toLowerCase()
@@ -22,4 +22,11 @@ export function matchesQuery(card: ProjectCard, q: string) {
     card.description.toLowerCase().includes(needle) ||
     card.tech_tags.some((t) => t.toLowerCase().includes(needle))
   )
+}
+
+/** Has every one of the selected Tags (case-insensitive); no selection matches everything. */
+export function matchesTags(card: ProjectCard, tags: string[]) {
+  if (!tags.length) return true
+  const own = new Set(card.tech_tags.map((t) => t.toLowerCase()))
+  return tags.every((t) => own.has(t.toLowerCase()))
 }

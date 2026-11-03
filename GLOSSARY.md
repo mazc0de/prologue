@@ -34,9 +34,9 @@ _Avoid_: Team project, joined project
 Whether a Project is still worked on: Active or Inactive. A Project becomes Inactive when work stops or moves elsewhere, for example to a new repository. Inactive Projects leave the dashboard overview and the sidebar and are listed under the Projects page's Inactive tab.
 _Avoid_: State, phase
 
-**Tech Tag**:
-A short label naming a technology a Project uses, such as "React" or "Laravel".
-_Avoid_: Stack, category
+**Tag**:
+A short free-text word used to categorise a Project, such as "client", "internal" or "Laravel". Stored in `projects.tech_tags`.
+_Avoid_: Tech Tag, category
 
 **Pin**:
 A Member's personal marker that keeps a Project at the top of their own dashboard. Pins are not shared between Members.
@@ -53,7 +53,7 @@ A source-code repository belonging to a Project. A Project has at most one.
 _Avoid_: Repo link, codebase
 
 **Environment**:
-A named place where a Repository's code runs, such as Production or Development, tying together the branch it is deployed from, its URLs, and the Version running there. Every Environment belongs to exactly one Repository.
+A named place where a Repository's code runs, such as Production or Development, tying together the branch it is deployed from, its .env, and the Version running there. Every Environment belongs to exactly one Repository.
 _Avoid_: Stage, server, deployment
 
 **Environment Kind**:
@@ -100,4 +100,4 @@ _Avoid_: Severity, importance
 
 **Label**:
 A project-specific marker attached to Tasks to group them, such as "bug" or "ui".
-_Avoid_: Tag (reserved for Tech Tag)
+_Avoid_: Tag (reserved for Projects)

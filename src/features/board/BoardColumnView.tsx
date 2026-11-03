@@ -259,7 +259,7 @@ function NewTaskInput({ projectId, columnId, onDone }: { projectId: string; colu
         className="min-h-0 resize-none border-0 bg-transparent px-1 py-0.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
       />
       <div className="flex items-center justify-end gap-1">
-        <Button size="sm" variant="ghost" onClick={onDone}>
+        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
           Cancel
         </Button>
         <Button size="sm" type="submit" loading={create.isPending}>

@@ -1,5 +1,5 @@
 import type { EnvironmentKind, EnvironmentVersion, ProjectCard, QuickLink, Release } from '@/lib/types'
-import type { EnvironmentWithUrls, MemberRow, RepositoryTree } from './queries'
+import type { EnvironmentSummary, MemberRow, RepositoryTree } from './queries'
 
 /*
  * Placeholder data for the pencil-sketch loading state (LOADING_DESIGN.md) of the Project page.
@@ -24,7 +24,7 @@ export function sketchProject(id: string): ProjectCard {
   }
 }
 
-function sketchEnvironment(projectId: string, kind: EnvironmentKind, branch: string, position: number): EnvironmentWithUrls {
+function sketchEnvironment(projectId: string, kind: EnvironmentKind, branch: string, position: number): EnvironmentSummary {
   const id = `sketch-env-${kind}`
   return {
     id,
@@ -36,9 +36,7 @@ function sketchEnvironment(projectId: string, kind: EnvironmentKind, branch: str
     repository_id: 'sketch-repo',
     created_at: NOW,
     updated_at: NOW,
-    environment_urls: [
-      { id: `${id}-url`, label: null, url: 'https://example.com', position: 0, environment_id: id, project_id: projectId, created_at: NOW },
-    ],
+    env_file_updated_at: NOW,
   }
 }
 

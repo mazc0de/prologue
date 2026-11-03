@@ -1,4 +1,4 @@
-import { ChevronDown, Ellipsis, ExternalLink, GitBranch, Pencil, Plus, Rocket, Trash } from 'lucide-react'
+import { ChevronDown, Ellipsis, ExternalLink, FileKey, GitBranch, Pencil, Plus, Rocket, Trash } from 'lucide-react'
 import { useState } from 'react'
 import { KindPill } from '@/components/badges'
 import { Button } from '@/components/ui/button'
@@ -16,15 +16,16 @@ import {
 import { ProviderIcon } from '@/components/ProviderIcon'
 import { cn } from '@/lib/utils'
 import { errorMessage } from '@/lib/errors'
-import { formatDateTime, hostOf, relativeTime } from '@/lib/format'
+import { formatDateTime, relativeTime } from '@/lib/format'
 import type { EnvironmentVersion } from '@/lib/types'
 import { EnvironmentDialog, RepositoryDialog } from './deploymentDialogs'
+import { EnvFileDialog } from './EnvFileDialog'
 import {
   useDeleteEnvironment,
   useDeleteRepository,
   useEnvironmentVersions,
   useRepositories,
-  type EnvironmentWithUrls,
+  type EnvironmentSummary,
   type RepositoryTree,
 } from './queries'
 import { ReleaseDialog, ReleaseHistory } from './releases'
@@ -166,7 +167,7 @@ function RepositoryBlock({ repo, projectId, editable, versions }: RepositoryBloc
         body={
           <p>
             Delete <strong className="font-medium">{repo.name}</strong> and its {repo.environments.length} Environment
-            {repo.environments.length === 1 ? '' : 's'}, their URLs and Releases?
+            {repo.environments.length === 1 ? '' : 's'}, their .env files and Releases?
           </p>
         }
         onConfirm={() => del.mutateAsync(repo.id)}
@@ -177,7 +178,7 @@ function RepositoryBlock({ repo, projectId, editable, versions }: RepositoryBloc
 
 /*
  * One Environment as a ledger row: Kind · name · branch | Version (the latest
- * Release) · when | URLs | actions. Expanding shows the release history.
+ * Release) · when | .env | actions. Expanding shows the release history.
  */
 function EnvironmentRow({
   env,
@@ -185,7 +186,7 @@ function EnvironmentRow({
   editable,
   version,
 }: {
-  env: EnvironmentWithUrls
+  env: EnvironmentSummary
   projectId: string
   editable: boolean
   version?: EnvironmentVersion
@@ -193,6 +194,7 @@ function EnvironmentRow({
   const [open, setOpen] = useState(false)
   const [releasing, setReleasing] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [viewingEnv, setViewingEnv] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const del = useDeleteEnvironment(projectId)
 
@@ -230,26 +232,31 @@ function EnvironmentRow({
           )}
         </div>
 
-        <ul className="col-span-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 md:col-span-1" aria-label="URLs">
-          {env.environment_urls.length === 0 ? (
-            <li className="text-xs text-muted-foreground">No URLs</li>
+        {/* .env is readable by Owners and Editors only (RLS), so Viewers just get told where it lives. */}
+        <div className="col-span-2 flex min-w-0 md:col-span-1">
+          {!editable ? (
+            <span className="text-xs text-muted-foreground">.env: Editors only</span>
+          ) : env.env_file_updated_at ? (
+            <button
+              type="button"
+              onClick={() => setViewingEnv(true)}
+              className="inline-flex min-w-0 items-center gap-1.5 text-xs text-foreground hover:text-primary"
+              title={`Saved ${formatDateTime(env.env_file_updated_at)}`}
+            >
+              <FileKey size={13} strokeWidth={1.75} className="flex-none text-muted-foreground" aria-hidden />
+              <span className="font-mono">.env</span>
+              <span className="truncate text-muted-foreground">· {relativeTime(env.env_file_updated_at)}</span>
+            </button>
           ) : (
-            env.environment_urls.map((u) => (
-              <li key={u.id} className="min-w-0">
-                <a
-                  href={u.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex max-w-full items-center gap-1 text-xs text-foreground hover:text-primary"
-                  title={u.url}
-                >
-                  <span className="truncate">{u.label ?? hostOf(u.url)}</span>
-                  <ExternalLink size={11} className="flex-none text-muted-foreground" aria-hidden />
-                </a>
-              </li>
-            ))
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Plus size={13} strokeWidth={1.75} aria-hidden /> Add .env
+            </button>
           )}
-        </ul>
+        </div>
 
         <div className="col-span-2 flex items-center justify-end gap-1 md:col-span-1">
           <CollapsibleTrigger asChild>
@@ -298,6 +305,16 @@ function EnvironmentRow({
       {editing && (
         <EnvironmentDialog projectId={projectId} repositoryId={env.repository_id} environment={env} onClose={() => setEditing(false)} />
       )}
+      {viewingEnv && (
+        <EnvFileDialog
+          environment={env}
+          onClose={() => setViewingEnv(false)}
+          onEdit={() => {
+            setViewingEnv(false)
+            setEditing(true)
+          }}
+        />
+      )}
       <ConfirmDialog
         open={deleting}
         onClose={() => setDeleting(false)}
@@ -305,7 +322,7 @@ function EnvironmentRow({
         confirmLabel="Delete"
         body={
           <p>
-            Delete <strong className="font-medium">{env.name}</strong> with its URLs and release history?
+            Delete <strong className="font-medium">{env.name}</strong> with its .env and release history?
           </p>
         }
         onConfirm={() => del.mutateAsync(env.id)}

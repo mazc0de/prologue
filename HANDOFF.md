@@ -17,7 +17,7 @@ You are picking up **Prologue (Project Log Gue)**, a dashboard for developers to
 
 - Reply in **Indonesian**. Write all code, file names, function names, identifiers, and UI copy in **English**.
 - Don't start coding until the user says so. Ask before anything outward-facing, such as pushing, deploying, or running SQL against their real Supabase project.
-- Use the terms in `GLOSSARY.md` exactly, in code and conversation. For example, it's a **Task**, not a card or ticket, and a **Label**, not a tag. "Tag" is reserved for **Tech Tag**.
+- Use the terms in `GLOSSARY.md` exactly, in code and conversation. For example, it's a **Task**, not a card or ticket, and a **Label**, not a tag. "Tag" is reserved for the **Tags** that categorise Projects.
 
 ## Read first
 
@@ -76,15 +76,15 @@ Can come later (before deploy):
 - `/` is the overview (KPIs, charts, This Week, Collaborators, the 3 most recent Projects). `/projects` holds only the Project cards, with status tabs and the top-bar search (`?q=`).
 - Two sections: **My Projects** (`my_role = 'owner'`) and **Shared with me** (`editor` / `viewer`). Pinned Projects come first, then sort by `last_activity_at` desc.
 - Project Status is **Active** or **Inactive** (migration `20261102020000_project_status_active_inactive.sql`; Paused / Done / Archived were folded into Inactive). Only Active Projects feed the dashboard overview and the sidebar; `/projects` has Active (default) / Inactive / All tabs.
-- All card data comes from the **`project_cards`** view: name, truncated description, Project Status, Tech Tags, `production_version`, `open_task_count`, `last_activity_at`, `pinned_at`, `my_role`. Don't compute these on the client.
+- All card data comes from the **`project_cards`** view: name, truncated description, Project Status, Tags, `production_version`, `open_task_count`, `last_activity_at`, `pinned_at`, `my_role`. Don't compute these on the client.
 - Pinning is per user: insert or delete `project_pins` rows (`user_id` defaults to `auth.uid()`).
 
 ### Project detail (`/projects/:projectId`)
 Top: project info. Below it: the Board.
-- **Header**: name, Project Status, Tech Tags (free text, max 20), description (**markdown**).
+- **Header**: name, Project Status, Tags (free text, max 20, column `tech_tags`), description (**markdown**).
 - **Repository**: **one per Project** (unique index, migration `20261102010000_single_repository.sql`). Fields: name and URL. `provider` (github/gitlab/bitbucket/other) is a generated column, used for the icon. `position` is left over from when a Project could have several.
   - Create it with RPC **`create_repository(project_id, name, url, production_branch, development_branch?)`**: the user types the branches; it inserts the Repository plus a Production Environment (and a Development one when that branch is given) in one transaction. There's no longer a trigger with hard-coded `main` / `develop`.
-- **Environments** per Repository: name (free text), **kind** (production/staging/development/preview/other, used for logic and badge color), branch, and **many labelled URLs** (`environment_urls`).
+- **Environments** per Repository: name (free text), **kind** (production/staging/development/preview/other, used for logic and badge color), branch, and an optional **.env** (`environment_env_files`, migration `20261102030000_environment_env_files.sql`): plain text, one per Environment, readable by **Owners and Editors only** (Viewers can't read it, not even through the API). Labelled URLs were removed.
 - **Version** = the latest Release of the Environment (ADR 0002). Read it from the **`environment_versions`** view. There's no editable version field. "Bump version" means creating a **Release** (version as free text, notes in markdown, `released_at` that can be backdated). Show the release history per Environment.
 - **Quick Links**: label + URL.
 - **Members**: list with role; the Owner can change roles, remove Members, and invite.
@@ -108,7 +108,7 @@ Top: project info. Below it: the Board.
 - **RLS-blocked UPDATE/DELETE fail silently** (0 rows, no error). Use `.select()` after mutations and treat an empty result as "not allowed".
 - `supabase.from('projects').insert(...).select()` works for the creator, because the select policy also allows `owner_id = auth.uid()` before the membership trigger runs.
 - Column-level grants: clients may only update `projects(name, description, status, tech_tags)`, `project_members(role)`, and `profiles(display_name)`. Sending other columns in an update errors.
-- Child tables carry a denormalised `project_id`, guarded by composite FKs. **Always send `project_id`** when inserting environments, environment_urls, releases, tasks, and task_labels.
+- Child tables carry a denormalised `project_id`, guarded by composite FKs. **Always send `project_id`** when inserting environments, environment_env_files, releases, tasks, and task_labels.
 - `invitations.email` must be lowercase and trimmed (CHECK constraint). Normalise on the client.
 - Access helpers live in schema `private` (not exposed). Public RPCs: `check_invitee`, `project_pending_invitations`, `my_pending_invitations`, `accept_invitation`, `decline_invitation`, `create_repository` (security invoker, so RLS applies).
 
@@ -148,7 +148,7 @@ Each step should end with a working, type-checked app (`npm run build`).
 2. **Auth**: `/register`, `/login`, `/forgot-password`, `/reset-password`, auth guard, sign-out, session provider.
 3. **Dashboard**: `project_cards`, My Projects / Shared with me, pin toggle, status filter, "New Project" dialog.
 4. **Invitations**: header bell with realtime, accept and decline.
-5. **Project detail**: header editing, Repositories → Environments → URLs, Releases plus history, Quick Links, Members and the invite dialog (`check_invitee`, copy message), leave and delete. Respect `my_role` in the UI (hide edit controls for Viewers).
+5. **Project detail**: header editing, Repositories → Environments → .env, Releases plus history, Quick Links, Members and the invite dialog (`check_invitee`, copy message), leave and delete. Respect `my_role` in the UI (hide edit controls for Viewers).
 6. **Board**: Columns CRUD with the Done flag, Tasks CRUD, drag and drop with fractional positions, Labels, Assignee, Priority, due date, realtime.
 7. **Deploy**: Vercel env vars, Supabase redirect URLs, smoke test with two accounts (owner and invitee).
 
@@ -156,4 +156,4 @@ Each step should end with a working, type-checked app (`npm run build`).
 
 Project notes (markdown), activity log, ⌘K command palette, GitHub integration (auto-fetch branches and tags), Vercel deploy status per Environment, ownership transfer, avatar upload, multiple assignees, workspaces/teams, email delivery of Invitations, email confirmation (see ADR 0001 for when to turn it on).
 
-**Never** store env variables or credentials in Prologue. Link to where they live instead.
+An Environment's `.env` is the one place Prologue stores env variables and credentials. It is plain text in Postgres, protected only by RLS (Owner/Editor), not encrypted. Don't add secrets anywhere else, and never let Viewers read `environment_env_files`.

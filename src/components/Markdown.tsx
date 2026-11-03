@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
@@ -28,13 +28,17 @@ interface MarkdownFieldProps {
   placeholder?: string
   rows?: number
   autoFocus?: boolean
+  required?: boolean
+  /** Replaces the "Markdown supported" hint and switches back to Write so the field can be fixed. */
+  error?: string | null
 }
 
 /** Textarea with a Write / Preview switch (shadcn Tabs). */
-export function MarkdownField({ label, value, onChange, placeholder, rows = 8, autoFocus }: MarkdownFieldProps) {
+export function MarkdownField({ label, value, onChange, placeholder, rows = 8, autoFocus, required, error }: MarkdownFieldProps) {
   const id = useId()
+  const [tab, setTab] = useState('write')
   return (
-    <Tabs defaultValue="write" className="gap-2">
+    <Tabs value={error ? 'write' : tab} onValueChange={setTab} className="gap-2">
       <div className="flex items-end justify-between gap-3">
         <Label htmlFor={id}>{label}</Label>
         <TabsList className="h-8" aria-label={`${label} mode`}>
@@ -52,6 +56,9 @@ export function MarkdownField({ label, value, onChange, placeholder, rows = 8, a
           value={value}
           rows={rows}
           autoFocus={autoFocus}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={`${id}-hint`}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
           className="resize-y font-mono text-[13px] leading-5"
@@ -62,7 +69,9 @@ export function MarkdownField({ label, value, onChange, placeholder, rows = 8, a
           {value.trim() ? <Markdown>{value}</Markdown> : <p className="text-sm text-muted-foreground">Nothing to preview.</p>}
         </div>
       </TabsContent>
-      <p className="text-xs text-muted-foreground">Markdown supported.</p>
+      <p id={`${id}-hint`} className={cn('text-xs', error ? 'text-destructive' : 'text-muted-foreground')}>
+        {error ?? 'Markdown supported.'}
+      </p>
     </Tabs>
   )
 }

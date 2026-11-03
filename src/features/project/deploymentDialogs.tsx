@@ -1,15 +1,15 @@
-import { Plus, X } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { KindPill } from '@/components/badges'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { FormDialog } from '@/components/FormDialog'
-import { FormError, SelectField, TextField } from '@/components/Field'
+import { FormError, SelectField, TextAreaField, TextField } from '@/components/Field'
+import { maskEnv } from '@/lib/env'
 import { cn } from '@/lib/utils'
 import { errorMessage } from '@/lib/errors'
 import { isHttpUrl } from '@/lib/format'
 import { ENVIRONMENT_KINDS, type EnvironmentKind, type Repository } from '@/lib/types'
-import { useSaveEnvironment, useSaveRepository, type EnvironmentWithUrls } from './queries'
+import { useSaveEnvironment, useSaveRepository, type EnvironmentSummary, useEnvFile } from './queries'
 
 export function RepositoryDialog({
   projectId,
@@ -119,16 +119,6 @@ export function RepositoryDialog({
   )
 }
 
-interface UrlDraft {
-  key: string
-  id?: string
-  label: string
-  url: string
-}
-
-let draftKey = 0
-const newDraft = (): UrlDraft => ({ key: `new-${draftKey++}`, label: '', url: '' })
-
 export function EnvironmentDialog({
   projectId,
   repositoryId,
@@ -137,35 +127,24 @@ export function EnvironmentDialog({
 }: {
   projectId: string
   repositoryId: string
-  environment?: EnvironmentWithUrls
+  environment?: EnvironmentSummary
   onClose: () => void
 }) {
   const [name, setName] = useState(environment?.name ?? '')
   const [kind, setKind] = useState<EnvironmentKind>(environment?.kind ?? 'staging')
   const [branch, setBranch] = useState(environment?.branch ?? '')
-  const [urls, setUrls] = useState<UrlDraft[]>(
-    environment?.environment_urls.map((u) => ({ key: u.id, id: u.id, label: u.label ?? '', url: u.url })) ?? [],
-  )
-  const [urlErrors, setUrlErrors] = useState<Set<string>>(new Set())
+  // Only fetch the .env when there is one. null = untouched, so saving leaves it as it is.
+  const envFile = useEnvFile(environment?.env_file_updated_at ? environment.id : undefined)
+  const [envDraft, setEnvDraft] = useState<string | null>(null)
+  // An existing .env opens with its values hidden; a new one starts shown so it can be typed in.
+  const [envShown, setEnvShown] = useState(!environment?.env_file_updated_at)
+  const envText = envDraft ?? envFile.data ?? ''
+  const envLoading = envFile.isLoading
+  const envFailed = !!envFile.error
   const save = useSaveEnvironment(projectId)
-
-  function update(key: string, patch: Partial<UrlDraft>) {
-    setUrls((all) => all.map((u) => (u.key === key ? { ...u, ...patch } : u)))
-    setUrlErrors((errs) => {
-      const next = new Set(errs)
-      next.delete(key)
-      return next
-    })
-  }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    const kept = urls.filter((u) => u.url.trim() || u.label.trim())
-    const bad = new Set(kept.filter((u) => !isHttpUrl(u.url)).map((u) => u.key))
-    if (bad.size) {
-      setUrlErrors(bad)
-      return
-    }
     save.mutate(
       {
         id: environment?.id,
@@ -173,7 +152,7 @@ export function EnvironmentDialog({
         name: name.trim(),
         kind,
         branch: branch.trim(),
-        urls: kept.map((u) => ({ id: u.id, label: u.label, url: u.url })),
+        envFile: envDraft ?? undefined,
       },
       { onSuccess: onClose },
     )
@@ -189,7 +168,7 @@ export function EnvironmentDialog({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="env-form" loading={save.isPending}>
+          <Button type="submit" form="env-form" loading={save.isPending} disabled={envLoading}>
             {environment ? 'Save' : 'Add Environment'}
           </Button>
         </>
@@ -224,46 +203,39 @@ export function EnvironmentDialog({
           onChange={(e) => setBranch(e.target.value)}
           className="font-mono"
         />
-
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium">URLs</legend>
-          {urls.length === 0 && <p className="text-xs text-muted-foreground">No URLs yet. Add the app, the admin, the API…</p>}
-          {urls.map((u, i) => (
-            <div key={u.key} className="flex flex-col gap-1">
-              <div className="grid grid-cols-[120px_minmax(0,1fr)_auto] gap-2">
-                <Input
-                  aria-label={`URL ${i + 1} label`}
-                  placeholder="Label"
-                  maxLength={60}
-                  value={u.label}
-                  onChange={(e) => update(u.key, { label: e.target.value })}
-                  
-                />
-                <Input
-                  aria-label={`URL ${i + 1}`}
-                  aria-invalid={urlErrors.has(u.key) || undefined}
-                  placeholder="https://"
-                  type="url"
-                  value={u.url}
-                  onChange={(e) => update(u.key, { url: e.target.value })}
-                  className={cn(urlErrors.has(u.key) && 'border-destructive')}
-                />
-                <Button variant="ghost" size="icon-sm" aria-label={`Remove URL ${i + 1}`} title={`Remove URL ${i + 1}`} onClick={() => setUrls((all) => all.filter((x) => x.key !== u.key))}>
-                  <X size={15} />
-                </Button>
-              </div>
-              {urlErrors.has(u.key) && (
-                <p className="text-xs text-destructive">Use a full URL starting with https://</p>
-              )}
-            </div>
-          ))}
-          <Button size="sm" variant="ghost" className="self-start" onClick={() => setUrls((all) => [...all, newDraft()])}>
-            <Plus size={14} strokeWidth={2} /> Add URL
+        <div className="relative">
+          <TextAreaField
+            label=".env"
+            hint={
+              envShown
+                ? 'Only Owners and Editors can see this. Leave it empty for no .env.'
+                : 'Values are hidden. Show them to edit.'
+            }
+            error={envFailed ? `Couldn't load the .env. ${errorMessage(envFile.error)}` : null}
+            placeholder={envLoading ? 'Loading .env…' : 'API_URL=https://api.example.com\nAPP_KEY=…'}
+            disabled={envLoading || envFailed}
+            readOnly={!envShown}
+            maxLength={65536}
+            rows={10}
+            spellCheck={false}
+            autoComplete="off"
+            wrap="off"
+            value={envShown ? envText : maskEnv(envText)}
+            onChange={(e) => setEnvDraft(e.target.value)}
+            className={cn('font-mono text-xs', !envShown && 'text-muted-foreground')}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="absolute top-0 right-0 -mt-1"
+            aria-pressed={envShown}
+            disabled={envLoading || envFailed}
+            onClick={() => setEnvShown((v) => !v)}
+          >
+            {envShown ? <EyeOff /> : <Eye />} {envShown ? 'Hide values' : 'Show values'}
           </Button>
-        </fieldset>
-        <p className="text-xs text-muted-foreground">
-          Never paste env variables or credentials here. Link to where they live instead.
-        </p>
+        </div>
       </form>
     </FormDialog>
   )

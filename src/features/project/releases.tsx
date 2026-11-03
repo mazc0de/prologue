@@ -29,11 +29,17 @@ export function ReleaseDialog({
 }) {
   const [version, setVersion] = useState(release?.version ?? '')
   const [notes, setNotes] = useState(release?.notes ?? '')
+  const [notesError, setNotesError] = useState<string | null>(null)
   const [releasedAt, setReleasedAt] = useState(() => isoToLocalInput(release?.released_at ?? new Date().toISOString()))
   const save = useSaveRelease(projectId)
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
+    // Checked here too: the browser skips `required` while the Preview tab hides the textarea.
+    if (!notes.trim()) {
+      setNotesError('Describe what changed in this Release.')
+      return
+    }
     save.mutate(
       {
         id: release?.id,
@@ -93,7 +99,18 @@ export function ReleaseDialog({
             hint="Backdate it if it shipped earlier."
           />
         </div>
-        <MarkdownField label="Notes" value={notes} onChange={setNotes} rows={8} placeholder="What changed in this Release?" />
+        <MarkdownField
+          label="Notes"
+          required
+          value={notes}
+          onChange={(value) => {
+            setNotes(value)
+            setNotesError(null)
+          }}
+          error={notesError}
+          rows={8}
+          placeholder="What changed in this Release?"
+        />
       </form>
     </FormDialog>
   )

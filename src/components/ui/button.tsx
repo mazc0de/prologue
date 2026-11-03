@@ -46,6 +46,7 @@ function Button({
   loading = false,
   disabled,
   children,
+  type = "button",
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
@@ -61,6 +62,9 @@ function Button({
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
+      // Prologue: a plain button by default, so one inside a form never submits it by accident
+      // (Enter in a field "clicks" the form's first submit button). Submit buttons say type="submit".
+      type={asChild ? undefined : type}
       disabled={asChild ? undefined : disabled || loading}
       aria-busy={loading || undefined}
       {...props}

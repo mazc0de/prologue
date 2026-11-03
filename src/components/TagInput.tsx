@@ -1,30 +1,40 @@
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useId, useState, type KeyboardEvent } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { MAX_TECH_TAGS } from '@/lib/types'
+import { MAX_TAGS } from '@/lib/types'
 
 interface TagInputProps {
   label: string
   value: string[]
   onChange: (tags: string[]) => void
   max?: number
+  /** Tags already used elsewhere (most used first), offered as one-click options. */
+  suggestions?: string[]
 }
 
-/** Free-text Tech Tags: Enter or comma adds, Backspace on empty removes the last. */
-export function TagInput({ label, value, onChange, max = MAX_TECH_TAGS }: TagInputProps) {
+const MAX_SHOWN_SUGGESTIONS = 8
+
+/**
+ * Free-text Tags: Enter or comma adds, Backspace on empty removes the last.
+ * Tags used before are offered below the field and narrowed as you type.
+ */
+export function TagInput({ label, value, onChange, max = MAX_TAGS, suggestions = [] }: TagInputProps) {
   const [draft, setDraft] = useState('')
   const id = useId()
   const full = value.length >= max
+  const options = full ? [] : matchingSuggestions(suggestions, value, draft)
 
   function add(raw: string) {
-    const tag = raw.trim().replace(/,$/, '').trim()
-    if (!tag || full) return
-    if (value.some((t) => t.toLowerCase() === tag.toLowerCase())) {
+    const typed = raw.trim().replace(/,$/, '').trim()
+    if (!typed || full) return
+    if (value.some((t) => t.toLowerCase() === typed.toLowerCase())) {
       setDraft('')
       return
     }
+    // Reuse an existing Tag's spelling, so "web" and "Web" stay one Tag across Projects.
+    const tag = suggestions.find((t) => t.toLowerCase() === typed.toLowerCase()) ?? typed
     onChange([...value, tag.slice(0, 40)])
     setDraft('')
   }
@@ -46,6 +56,7 @@ export function TagInput({ label, value, onChange, max = MAX_TECH_TAGS }: TagInp
           <Badge key={tag} variant="secondary" className="h-6 gap-1 pr-0.5 pl-2">
             {tag}
             <Button
+              type="button"
               variant="ghost"
               size="icon-xs"
               aria-label={`Remove ${tag}`}
@@ -64,13 +75,47 @@ export function TagInput({ label, value, onChange, max = MAX_TECH_TAGS }: TagInp
           onKeyDown={onKeyDown}
           onBlur={() => add(draft)}
           aria-describedby={`${id}-hint`}
-          placeholder={value.length ? '' : 'React, Laravel, Postgres…'}
+          placeholder={value.length ? '' : 'Web, Client, Internal…'}
           className="h-6 min-w-24 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground disabled:hidden"
         />
       </div>
+      {options.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">{draft.trim() ? 'Matching:' : 'Used before:'}</span>
+          {options.map((tag) => (
+            <Button
+              key={tag}
+              type="button"
+              variant="outline"
+              size="xs"
+              aria-label={`Add Tag ${tag}`}
+              // Keep focus in the field, so its blur doesn't also add the half-typed draft.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => add(tag)}
+              className="font-normal"
+            >
+              <Plus /> {tag}
+            </Button>
+          ))}
+        </div>
+      )}
       <FieldDescription id={`${id}-hint`}>
         Press Enter to add · {value.length} of {max}
       </FieldDescription>
     </Field>
   )
+}
+
+/** Suggestions not on this Project yet; while typing, those containing the draft, prefix matches first. */
+function matchingSuggestions(suggestions: string[], value: string[], draft: string): string[] {
+  const taken = new Set(value.map((t) => t.toLowerCase()))
+  const needle = draft.trim().toLowerCase()
+  const available = suggestions.filter((t) => !taken.has(t.toLowerCase()))
+  const matches = needle
+    ? [
+        ...available.filter((t) => t.toLowerCase().startsWith(needle)),
+        ...available.filter((t) => !t.toLowerCase().startsWith(needle) && t.toLowerCase().includes(needle)),
+      ]
+    : available
+  return matches.slice(0, MAX_SHOWN_SUGGESTIONS)
 }

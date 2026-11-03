@@ -46,38 +46,29 @@ export type Database = {
           },
         ];
       };
-      environment_urls: {
+      environment_env_files: {
         Row: {
-          created_at: string;
+          content: string;
           environment_id: string;
-          id: string;
-          label: string | null;
-          position: number;
           project_id: string;
-          url: string;
+          updated_at: string;
         };
         ComputedFields: never;
         Insert: {
-          created_at?: string;
+          content: string;
           environment_id: string;
-          id?: string;
-          label?: string | null;
-          position?: number;
           project_id: string;
-          url: string;
+          updated_at?: string;
         };
         Update: {
-          created_at?: string;
+          content?: string;
           environment_id?: string;
-          id?: string;
-          label?: string | null;
-          position?: number;
           project_id?: string;
-          url?: string;
+          updated_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "environment_urls_environment_id_project_id_fkey";
+            foreignKeyName: "environment_env_files_environment_id_project_id_fkey";
             columns: ["environment_id", "project_id"];
             isOneToOne: false;
             referencedRelation: "environments";
