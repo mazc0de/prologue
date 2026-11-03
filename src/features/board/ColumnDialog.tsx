@@ -7,6 +7,7 @@ import { FormError, TextField } from '@/components/Field'
 import { errorMessage } from '@/lib/errors'
 import type { BoardColumn } from '@/lib/types'
 import { useCreateColumn, useUpdateColumn } from './queries'
+import { notify } from '@/lib/notify'
 
 export function ColumnDialog({
   projectId,
@@ -25,8 +26,12 @@ export function ColumnDialog({
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (column) update.mutate({ id: column.id, patch: { name: name.trim(), is_done: isDone } }, { onSuccess: onClose })
-    else create.mutate({ name, isDone }, { onSuccess: onClose })
+    const onSuccess = () => {
+      notify.success(column ? 'Column saved' : 'Column added')
+      onClose()
+    }
+    if (column) update.mutate({ id: column.id, patch: { name: name.trim(), is_done: isDone } }, { onSuccess })
+    else create.mutate({ name, isDone }, { onSuccess })
   }
 
   return (

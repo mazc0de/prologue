@@ -44,7 +44,7 @@ export function LabelsDialog({ projectId, onClose }: { projectId: string; onClos
                 <Button variant="ghost" size="icon-sm"
                   aria-label={`Delete ${l.name}`} title={`Delete ${l.name}`}
                   className="size-7"
-                  onClick={() => del.mutate(l.id, { onError: notify.error })}
+                  onClick={() => del.mutate(l.id, { onSuccess: () => notify.success(`Label ${l.name} deleted`), onError: notify.error })}
                 >
                   <Trash size={13} strokeWidth={1.75} />
                 </Button>
@@ -69,6 +69,7 @@ function LabelForm({ projectId, label, onSaved }: { projectId: string; label?: L
       { id: label?.id, name, color },
       {
         onSuccess: () => {
+          notify.success(label ? `Label ${name.trim()} saved` : `Label ${name.trim()} added`)
           setName('')
           onSaved()
         },

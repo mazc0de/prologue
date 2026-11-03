@@ -7,6 +7,7 @@ import { MarkdownField } from '@/components/Markdown'
 import { TagInput } from '@/components/TagInput'
 import { errorMessage } from '@/lib/errors'
 import { useCreateProject, useTagSuggestions } from './queries'
+import { notify } from '@/lib/notify'
 
 export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [name, setName] = useState('')
@@ -20,7 +21,12 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
     e.preventDefault()
     create.mutate(
       { name: name.trim(), description, tech_tags: tags },
-      { onSuccess: (id) => navigate(`/projects/${id}`) },
+      {
+        onSuccess: (id) => {
+          notify.success('Project created')
+          navigate(`/projects/${id}`)
+        },
+      },
     )
   }
 

@@ -54,13 +54,23 @@ export function ProjectHeader({ project }: { project: ProjectCard }) {
           {editable && (
             <StatusSelect
               value={project.status}
-              onChange={(status) => update.mutate({ status }, { onError: notify.error })}
+              onChange={(status) =>
+                update.mutate(
+                  { status },
+                  { onSuccess: () => notify.success(`${project.name} is now ${capitalize(status)}`), onError: notify.error },
+                )
+              }
             />
           )}
           <Button variant="ghost" size="icon-sm"
             aria-label={pinned ? 'Unpin from dashboard' : 'Pin to top of dashboard'} title={pinned ? 'Unpin from dashboard' : 'Pin to top of dashboard'}
             aria-pressed={pinned}
-            onClick={() => togglePin.mutate({ projectId: project.id, pinned: !pinned }, { onError: notify.error })}
+            onClick={() =>
+              togglePin.mutate(
+                { projectId: project.id, pinned: !pinned },
+                { onSuccess: () => notify.success(pinned ? `${project.name} unpinned` : `${project.name} pinned`), onError: notify.error },
+              )
+            }
             className={pinned ? 'text-foreground' : undefined}
           >
             <Pin size={16} strokeWidth={1.75} fill={pinned ? 'currentColor' : 'none'} />
@@ -135,6 +145,7 @@ export function ProjectHeader({ project }: { project: ProjectCard }) {
         }
         onConfirm={async () => {
           await remove.mutateAsync(project.id)
+          notify.success(`${project.name} deleted`)
           navigate('/', { replace: true })
         }}
       />
@@ -152,6 +163,7 @@ export function ProjectHeader({ project }: { project: ProjectCard }) {
         }
         onConfirm={async () => {
           await leave.mutateAsync(userId)
+          notify.success(`You left ${project.name}`)
           navigate('/', { replace: true })
         }}
       />
@@ -205,7 +217,15 @@ export function EditProjectDialog({ project, onClose }: { project: ProjectCard; 
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    update.mutate({ name: name.trim(), description, status, tech_tags: tags }, { onSuccess: onClose })
+    update.mutate(
+      { name: name.trim(), description, status, tech_tags: tags },
+      {
+        onSuccess: () => {
+          notify.success('Project saved')
+          onClose()
+        },
+      },
+    )
   }
 
   return (

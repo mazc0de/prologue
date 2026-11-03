@@ -12,6 +12,7 @@ import { formatDate, formatDateTime, isoToLocalInput, localInputToISO } from '@/
 import type { Environment, Release } from '@/lib/types'
 import { useDeleteRelease, useReleases, useSaveRelease } from './queries'
 import { sketchReleases } from './sketch'
+import { notify } from '@/lib/notify'
 
 /** "Bump version" = record a Release (ADR 0002). Also used to edit one. */
 export function ReleaseDialog({
@@ -48,7 +49,12 @@ export function ReleaseDialog({
         notes,
         released_at: localInputToISO(releasedAt),
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          notify.success(release ? `Release ${version.trim()} saved` : `Release ${version.trim()} recorded`)
+          onClose()
+        },
+      },
     )
   }
 
@@ -167,7 +173,9 @@ export function ReleaseHistory({
             Environment’s Version falls back to the one before it.
           </p>
         }
-        onConfirm={() => del.mutateAsync({ id: deleting!.id, environmentId })}
+        onConfirm={() =>
+          del.mutateAsync({ id: deleting!.id, environmentId }).then(() => notify.success(`Release ${deleting!.version} deleted`))
+        }
       />
     </>
   )

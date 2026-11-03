@@ -26,7 +26,7 @@ createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <TooltipProvider delayDuration={300}>
             <App />
-            <Toaster position="bottom-right" closeButton />
+            <Toaster position="top-center" closeButton />
           </TooltipProvider>
         </AuthProvider>
       </QueryClientProvider>

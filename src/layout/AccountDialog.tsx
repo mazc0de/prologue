@@ -6,6 +6,7 @@ import { FormDialog } from '@/components/FormDialog'
 import { FormError, TextField } from '@/components/Field'
 import { errorMessage, expectRows } from '@/lib/errors'
 import { supabase } from '@/lib/supabase'
+import { notify } from '@/lib/notify'
 
 export function AccountDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { profile, userId } = useAuth()
@@ -17,6 +18,7 @@ export function AccountDialog({ open, onClose }: { open: boolean; onClose: () =>
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', userId] })
       queryClient.invalidateQueries({ queryKey: ['project'] })
+      notify.success('Account saved')
       onClose()
     },
   })

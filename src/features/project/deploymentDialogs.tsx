@@ -10,6 +10,7 @@ import { errorMessage } from '@/lib/errors'
 import { isHttpUrl } from '@/lib/format'
 import { ENVIRONMENT_KINDS, type EnvironmentKind, type Repository } from '@/lib/types'
 import { useSaveEnvironment, useSaveRepository, type EnvironmentSummary, useEnvFile } from './queries'
+import { notify } from '@/lib/notify'
 
 export function RepositoryDialog({
   projectId,
@@ -42,7 +43,12 @@ export function RepositoryDialog({
             productionBranch: productionBranch.trim(),
             developmentBranch: developmentBranch.trim(),
           },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          notify.success(repository ? 'Repository saved' : 'Repository added')
+          onClose()
+        },
+      },
     )
   }
 
@@ -154,7 +160,12 @@ export function EnvironmentDialog({
         branch: branch.trim(),
         envFile: envDraft ?? undefined,
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          notify.success(environment ? 'Environment saved' : 'Environment added')
+          onClose()
+        },
+      },
     )
   }
 

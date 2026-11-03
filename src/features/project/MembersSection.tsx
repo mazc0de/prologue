@@ -110,7 +110,7 @@ function MemberItem({ member, project, first }: { member: MemberRow; project: Pr
               onValueChange={(role) =>
                 changeRole.mutate(
                   { userId: member.user_id, role: role as Exclude<ProjectRole, 'owner'> },
-                  { onError: notify.error },
+                  { onSuccess: () => notify.success(`${name} is now ${role === 'editor' ? 'an Editor' : 'a Viewer'}`), onError: notify.error },
                 )
               }
             >
@@ -140,7 +140,7 @@ function MemberItem({ member, project, first }: { member: MemberRow; project: Pr
             Remove <strong className="font-medium">{name}</strong> from {project.name}? Their Tasks become unassigned.
           </p>
         }
-        onConfirm={() => remove.mutateAsync(member.user_id)}
+        onConfirm={() => remove.mutateAsync(member.user_id).then(() => notify.success(`${name} removed`))}
       />
     </li>
   )
@@ -161,8 +161,11 @@ function PendingItem({ invitation, project, first }: { invitation: PendingInvita
 
   async function copy() {
     if (await copyText(registrationMessage(project.name, invitation.email))) {
+      notify.success('Invitation message copied')
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
+    } else {
+      notify.error(new Error("Couldn't copy the message."))
     }
   }
 
@@ -186,7 +189,12 @@ function PendingItem({ invitation, project, first }: { invitation: PendingInvita
         <Button variant="ghost" size="icon-sm"
           aria-label={`Revoke Invitation for ${invitation.email}`} title={`Revoke Invitation for ${invitation.email}`}
           className="size-7"
-          onClick={() => revoke.mutate(invitation.id, { onError: notify.error })}
+          onClick={() =>
+            revoke.mutate(invitation.id, {
+              onSuccess: () => notify.success(`Invitation to ${invitation.email} revoked`),
+              onError: notify.error,
+            })
+          }
         >
           <X size={14} />
         </Button>

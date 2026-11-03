@@ -10,6 +10,7 @@ import { FormDialog } from '@/components/FormDialog'
 import { FormError, SelectField, TextField } from '@/components/Field'
 import { Markdown, MarkdownField } from '@/components/Markdown'
 import type { MemberRow } from '@/features/project/queries'
+import { notify } from '@/lib/notify'
 import { cn } from '@/lib/utils'
 import { errorMessage } from '@/lib/errors'
 import { formatDateTime, formatDueDate } from '@/lib/format'
@@ -131,6 +132,7 @@ function EditTask({ projectId, task, columns, labels, members, onClose }: Props)
 
       const before = task.task_labels.map((tl) => tl.label_id).sort().join()
       if ([...labelIds].sort().join() !== before) await setLabels.mutateAsync({ taskId: task.id, labelIds })
+      notify.success('Task saved')
       onClose()
     } catch (err) {
       setError(errorMessage(err))
@@ -248,6 +250,7 @@ function EditTask({ projectId, task, columns, labels, members, onClose }: Props)
         }
         onConfirm={async () => {
           await del.mutateAsync(task.id)
+          notify.success('Task deleted')
           onClose()
         }}
       />

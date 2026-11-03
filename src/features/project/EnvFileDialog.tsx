@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { copyText } from '@/lib/clipboard'
 import { maskEnv } from '@/lib/env'
 import { errorMessage } from '@/lib/errors'
+import { notify } from '@/lib/notify'
 import { useEnvFile } from './queries'
 
 /** Read-only view of one Environment's .env: values hidden until asked, copied as is. */
@@ -24,9 +25,13 @@ export function EnvFileDialog({
   const content = envFile.data
 
   async function onCopy() {
-    if (content && (await copyText(content))) {
+    if (!content) return
+    if (await copyText(content)) {
+      notify.success(`${environment.name} .env copied`)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
+    } else {
+      notify.error(new Error("Couldn't copy the .env."))
     }
   }
 

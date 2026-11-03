@@ -67,6 +67,7 @@ export function InvitationBell() {
                       onClick={() =>
                         accept.mutate(inv.id, {
                           onSuccess: (projectId) => {
+                            notify.success(`You joined ${inv.project_name}`)
                             setOpen(false)
                             navigate(`/projects/${projectId}`)
                           },
@@ -80,7 +81,9 @@ export function InvitationBell() {
                       size="sm"
                       variant="ghost"
                       disabled={busy}
-                      onClick={() => decline.mutate(inv.id, { onError: notify.error })}
+                      onClick={() =>
+                        decline.mutate(inv.id, { onSuccess: () => notify.success('Invitation declined'), onError: notify.error })
+                      }
                     >
                       Decline
                     </Button>

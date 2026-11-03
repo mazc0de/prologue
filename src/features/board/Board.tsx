@@ -191,11 +191,14 @@ function BoardView({
     if (unchanged) return
 
     const position = positionBetween(before, after)
+    const movedAcross = task.column_id !== to
+    const targetName = data.columns.find((c) => c.id === to)?.name
     move.mutate(
       { id: activeKey, columnId: to, position },
       {
         onError: notify.error,
         onSuccess: () => {
+          notify.success(movedAcross && targetName ? `Task moved to ${targetName}` : 'Task reordered')
           if (needsRebalance(before, position, after)) rebalance.mutate(ordered)
         },
       },

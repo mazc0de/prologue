@@ -31,6 +31,7 @@ import {
 import { ReleaseDialog, ReleaseHistory } from './releases'
 import { SectionHeader } from './SectionHeader'
 import { sketchRepository, sketchVersions } from './sketch'
+import { notify } from '@/lib/notify'
 
 /** A Project has at most one Repository (see migration 20261102010000_single_repository). */
 export function RepositoriesSection({ projectId, editable }: { projectId: string; editable: boolean }) {
@@ -170,7 +171,7 @@ function RepositoryBlock({ repo, projectId, editable, versions }: RepositoryBloc
             {repo.environments.length === 1 ? '' : 's'}, their .env files and Releases?
           </p>
         }
-        onConfirm={() => del.mutateAsync(repo.id)}
+        onConfirm={() => del.mutateAsync(repo.id).then(() => notify.success('Repository deleted'))}
       />
     </article>
   )
@@ -325,7 +326,7 @@ function EnvironmentRow({
             Delete <strong className="font-medium">{env.name}</strong> with its .env and release history?
           </p>
         }
-        onConfirm={() => del.mutateAsync(env.id)}
+        onConfirm={() => del.mutateAsync(env.id).then(() => notify.success(`${env.name} deleted`))}
       />
     </li>
     </Collapsible>

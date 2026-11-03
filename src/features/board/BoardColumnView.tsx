@@ -100,7 +100,14 @@ export function BoardColumnView({
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => {
-                      update.mutate({ id: column.id, patch: { is_done: !column.is_done } }, { onError: notify.error })
+                      update.mutate(
+                        { id: column.id, patch: { is_done: !column.is_done } },
+                        {
+                          onSuccess: () =>
+                            notify.success(column.is_done ? `${column.name} is no longer the Done Column` : `${column.name} is now the Done Column`),
+                          onError: notify.error,
+                        },
+                      )
                     }}
                   >
                     <CircleCheck size={14} strokeWidth={1.75} className="text-muted-foreground" />
@@ -115,7 +122,7 @@ export function BoardColumnView({
                             id: column.id,
                             patch: { position: positionBetween(prevPrevColumn?.position, prevColumn.position) },
                           },
-                          { onError: notify.error },
+                          { onSuccess: () => notify.success(`${column.name} moved left`), onError: notify.error },
                         )
                       }}
                     >
@@ -130,7 +137,7 @@ export function BoardColumnView({
                             id: column.id,
                             patch: { position: positionBetween(nextColumn.position, nextNextColumn?.position) },
                           },
-                          { onError: notify.error },
+                          { onSuccess: () => notify.success(`${column.name} moved right`), onError: notify.error },
                         )
                       }}
                     >
@@ -196,7 +203,7 @@ export function BoardColumnView({
             Delete the empty Column <strong className="font-medium">{column.name}</strong>?
           </p>
         }
-        onConfirm={() => del.mutateAsync(column.id)}
+        onConfirm={() => del.mutateAsync(column.id).then(() => notify.success('Column deleted'))}
       />
       <FormDialog
         open={blocked}
@@ -229,7 +236,7 @@ function NewTaskInput({ projectId, columnId, onDone }: { projectId: string; colu
       onDone()
       return
     }
-    create.mutate({ columnId, title: value }, { onError: notify.error })
+    create.mutate({ columnId, title: value }, { onSuccess: () => notify.success('Task added'), onError: notify.error })
     setTitle('')
   }
 

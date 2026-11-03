@@ -69,7 +69,12 @@ export function ProjectCardView({ card, progress }: { card: ProjectCard; progres
           aria-pressed={pinned}
           aria-label={pinned ? `Unpin ${card.name}` : `Pin ${card.name}`}
           title={pinned ? 'Unpin' : 'Pin to top'}
-          onClick={() => togglePin.mutate({ projectId: card.id, pinned: !pinned }, { onError: notify.error })}
+          onClick={() =>
+            togglePin.mutate(
+              { projectId: card.id, pinned: !pinned },
+              { onSuccess: () => notify.success(pinned ? `${card.name} unpinned` : `${card.name} pinned`), onError: notify.error },
+            )
+          }
           className={cn(
             'relative z-10 -mt-1 -mr-1 flex-none',
             pinned ? 'text-foreground' : 'text-faint opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100',

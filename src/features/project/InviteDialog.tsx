@@ -6,6 +6,7 @@ import { FormDialog } from '@/components/FormDialog'
 import { FormError, SelectField, TextField } from '@/components/Field'
 import { copyText } from '@/lib/clipboard'
 import { errorMessage } from '@/lib/errors'
+import { notify } from '@/lib/notify'
 import { normaliseEmail } from '@/lib/format'
 import type { ProjectCard, ProjectRole } from '@/lib/types'
 import { checkInvitee, registrationMessage, useInvite } from './queries'
@@ -61,12 +62,14 @@ export function InviteDialog({ project, onClose }: { project: ProjectCard; onClo
     invite.mutate(
       { email: step.email, role },
       {
-        onSuccess: () =>
+        onSuccess: () => {
+          notify.success(`Invitation sent to ${step.email}`)
           setStep(
             step.isRegistered && step.displayName
               ? { kind: 'sent-registered', email: step.email, displayName: step.displayName }
               : { kind: 'sent-unregistered', email: step.email },
-          ),
+          )
+        },
         onError: (err) => setError(errorMessage(err)),
       },
     )
@@ -74,8 +77,11 @@ export function InviteDialog({ project, onClose }: { project: ProjectCard; onClo
 
   async function onCopy(address: string) {
     if (await copyText(registrationMessage(project.name, address))) {
+      notify.success('Invitation message copied')
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
+    } else {
+      notify.error(new Error("Couldn't copy the message."))
     }
   }
 

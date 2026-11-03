@@ -67,7 +67,9 @@ export function QuickLinksSection({ projectId, editable }: { projectId: string; 
                     <Button variant="ghost" size="icon-sm"
                       aria-label={`Delete ${link.label}`} title={`Delete ${link.label}`}
                       className="size-7"
-                      onClick={() => del.mutate(link.id, { onError: notify.error })}
+                      onClick={() =>
+                        del.mutate(link.id, { onSuccess: () => notify.success(`${link.label} deleted`), onError: notify.error })
+                      }
                     >
                       <Trash size={13} strokeWidth={1.75} />
                     </Button>
@@ -101,7 +103,15 @@ function QuickLinkDialog({ projectId, link, onClose }: { projectId: string; link
       setUrlError('Use a full URL starting with https://')
       return
     }
-    save.mutate({ id: link?.id, label, url }, { onSuccess: onClose })
+    save.mutate(
+      { id: link?.id, label, url },
+      {
+        onSuccess: () => {
+          notify.success(link ? 'Quick Link saved' : 'Quick Link added')
+          onClose()
+        },
+      },
+    )
   }
 
   return (
