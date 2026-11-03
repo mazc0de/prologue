@@ -2,15 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Icons come from the logo kit in public/prologue-logo/favicon. favicon.svg follows the OS light/dark scheme. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f4f1ea" />
+    <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#151412" media="(prefers-color-scheme: dark)" />
+    <meta name="application-name" content="Prologue" />
+    <meta name="apple-mobile-web-app-title" content="Prologue" />
 
     <!--
       SEO and link previews (WhatsApp, Facebook, LinkedIn, Telegram, Slack, X).
       This is an SPA: crawlers don't run JS, so these tags are what every shared link shows.
-      URLs must be absolute. og-image.png is 1200×630 (rendered from the e-ink design).
+      URLs must be absolute. The preview image is the square 1024×1024 app icon from the logo kit,
+      so twitter:card is "summary" (square thumbnail) rather than "summary_large_image".
     -->
     <title>Prologue · Project Log Gue</title>
     <meta
@@ -27,22 +36,33 @@
       property="og:description"
       content="Every project, one ledger. Where the code lives, where it runs, which Version is out, and what work is left."
     />
-    <meta property="og:image" content="https://prologue-app.vercel.app/og-image.png" />
-    <meta property="og:image:secure_url" content="https://prologue-app.vercel.app/og-image.png" />
+    <meta property="og:image" content="https://prologue-app.vercel.app/prologue-logo/png/prologue-app-icon-light-1024.png" />
+    <meta property="og:image:secure_url" content="https://prologue-app.vercel.app/prologue-logo/png/prologue-app-icon-light-1024.png" />
     <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Prologue: every project, one ledger, with Environments, Versions and Tasks done." />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="1024" />
+    <meta property="og:image:alt" content="Prologue logo" />
     <meta property="og:locale" content="en_US" />
 
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Prologue · Project Log Gue" />
     <meta
       name="twitter:description"
       content="Every project, one ledger. Where the code lives, where it runs, which Version is out, and what work is left."
     />
-    <meta name="twitter:image" content="https://prologue-app.vercel.app/og-image.png" />
-    <meta name="twitter:image:alt" content="Prologue: every project, one ledger, with Environments, Versions and Tasks done." />
+    <meta name="twitter:image" content="https://prologue-app.vercel.app/prologue-logo/png/prologue-app-icon-light-1024.png" />
+    <meta name="twitter:image:alt" content="Prologue logo" />
+
+    <!-- Lets search engines show the Prologue logo next to the site name. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Prologue",
+        "url": "https://prologue-app.vercel.app/",
+        "logo": "https://prologue-app.vercel.app/prologue-logo/png/prologue-app-icon-light-1024.png"
+      }
+    </script>
     <script>
       // Apply the saved theme before first paint so dark mode doesn't flash. Mirrors src/theme/ThemeProvider.tsx.
       ;(function () {

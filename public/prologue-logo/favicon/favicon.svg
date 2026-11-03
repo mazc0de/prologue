@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <style>.l4{fill:#116329}.l3{fill:#2DA44E}@media (prefers-color-scheme: dark){.l4{fill:#4AD06F}.l3{fill:#2DA44E}}</style>
+  <rect class="l4" x="5.0" y="2.0" width="4" height="4" rx="1"/>
+  <rect class="l4" x="11.0" y="2.0" width="4" height="4" rx="1"/>
+  <rect class="l3" x="17.0" y="2.0" width="4" height="4" rx="1"/>
+  <rect class="l4" x="5.0" y="8.0" width="4" height="4" rx="1"/>
+  <rect class="l4" x="23.0" y="8.0" width="4" height="4" rx="1"/>
+  <rect class="l3" x="5.0" y="14.0" width="4" height="4" rx="1"/>
+  <rect class="l4" x="11.0" y="14.0" width="4" height="4" rx="1"/>
+  <rect class="l4" x="17.0" y="14.0" width="4" height="4" rx="1"/>
+  <rect class="l4" x="5.0" y="20.0" width="4" height="4" rx="1"/>
+  <rect class="l4" x="5.0" y="26.0" width="4" height="4" rx="1"/>
+</svg>
